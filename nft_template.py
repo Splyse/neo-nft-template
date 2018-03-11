@@ -289,6 +289,7 @@ def do_transfer_from(ctx, t_from, t_to, t_id):
     authorized_spender = Get(ctx, approval_key)
 
     if len(authorized_spender) == 0:
+        print("no approval exists for this token")
         return False
 
     if CheckWitness(authorized_spender):
