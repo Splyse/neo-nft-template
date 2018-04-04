@@ -28,7 +28,8 @@ in_circulation_key = b'in_circulation'
 
 # This is the script hash of the address for the owner of the contract
 # This can be found in ``neo-python`` with the wallet open, use ``wallet`` command
-owner = b'+z\x15\xd2\xc6e\xa9\xc3B\xf0jI\x8fW\x13\xa4\x93\x14\xc1\x04'
+#owner = b'+z\x15\xd2\xc6e\xa9\xc3B\xf0jI\x8fW\x13\xa4\x93\x14\xc1\x04'
+owner = b'\x0f\x26\x1f\xe5\xc5\x2c\x6b\x01\xa4\x7b\xbd\x02\xbd\x4d\xd3\x3f\xf1\x88\xc9\xde'
 
 OnTransfer = RegisterAction('transfer', 'addr_from', 'addr_to', 'amount')
 OnNFTTransfer = RegisterAction('NFTtransfer', 'addr_from', 'addr_to', 'tokenid')
