@@ -11,7 +11,7 @@ The NFT proposal standard for the Neo Smart Economy is currently in development.
 The operations of the NFT template contract are:  
 
   * **allowance**(tokenid): returns approved third-party spender of a token
-  * **approve**(spender, tokenid, revoke): approve third party to spend a token
+  * **approve**(owner, spender, tokenid, revoke): approve third party to spend a token
   * **balanceOf**(owner): returns owner's current total tokens owned
   * **circulation**(): returns current number of tokens in circulation
   * **decimals**(): returns number of decimals of token
