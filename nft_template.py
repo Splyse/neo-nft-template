@@ -47,7 +47,7 @@ def Main(operation, args):
     Token operations:
 
     - allowance(tokenid): returns approved third-party spender of a token
-    - approve(spender, tokenid, revoke): approve third party to spend a token
+    - approve(owner, spender, tokenid, revoke): approve third party to spend a token
     - balanceOf(owner): returns owner's current total tokens owned
     - circulation(): returns current number of tokens in circulation
     - decimals(): returns number of decimals of token
@@ -191,11 +191,12 @@ def Main(operation, args):
             return arg_error
 
         elif operation == 'approve':
-            if len(args) == 3:
-                t_spender = args[0]
-                t_id = args[1]
-                revoke = args[2]  # set to 1 to revoke previous approval
-                return do_approve(ctx, t_spender, t_id, revoke)
+            if len(args) == 4:
+                t_owner = args[0]
+                t_spender = args[1]
+                t_id = args[2]
+                revoke = args[3]  # set to 1 to revoke previous approval
+                return do_approve(ctx, t_owner, t_spender, t_id, revoke)
             return arg_error
 
         elif operation == 'allowance':
@@ -286,34 +287,42 @@ def do_transfer_from(ctx, t_from, t_to, t_id):
         return False
 
     approval_key = concat("approved/", t_id)
-    authorized_spender = Get(ctx, approval_key)
+    authorized_spend = Get(ctx, approval_key)
 
-    if len(authorized_spender) == 0:
+    if len(authorized_spend) == 0:
         print("no approval exists for this token")
         return False
+    
+    if authorized_spend == concat(t_from, t_to):
+        
+        res = removeTokenFromOwnersList(ctx, t_from, t_id)
+        if res == False:
+            print("unable to transfer token")
+            return False
 
-    res = removeTokenFromOwnersList(ctx, t_from, t_id)
-    if res == False:
-        print("unable to transfer token")
+        addTokenToOwnersList(ctx, t_to, t_id)
+
+        Put(ctx, t_id, t_to)
+
+        # remove the approval for this token
+        Delete(ctx, approval_key)
+
+        print("transfer complete")
+
+        OnTransfer(t_from, t_to, 1)
+        OnNFTTransfer(t_from, t_to, t_id)
+
+        return True
+    
+    print("spend not approved")
+    return False
+
+
+def do_approve(ctx, t_owner, t_spender, t_id, revoke):
+
+    if len(t_owner) != 20:
         return False
-
-    addTokenToOwnersList(ctx, t_to, t_id)
-
-    Put(ctx, t_id, t_to)
-
-    # remove the approval for this token
-    Delete(ctx, approval_key)
-
-    print("transfer complete")
-
-    OnTransfer(t_from, t_to, 1)
-    OnNFTTransfer(t_from, t_to, t_id)
-
-    return True
-
-
-def do_approve(ctx, t_spender, t_id, revoke):
-
+    
     if len(t_spender) != 20:
         return False
 
@@ -341,8 +350,8 @@ def do_approve(ctx, t_spender, t_id, revoke):
 
         # only one third-party spender can be approved 
         # at any given time for a specific token
-
-        Put(ctx, approval_key, t_spender)
+        approved_spend = concat(t_owner, t_spender)
+        Put(ctx, approval_key, approved_spend)
         OnApprove(t_owner, t_spender, 1)
         OnNFTApprove(t_owner, t_spender, t_id)
 
