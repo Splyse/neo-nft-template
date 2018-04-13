@@ -292,29 +292,25 @@ def do_transfer_from(ctx, t_from, t_to, t_id):
         print("no approval exists for this token")
         return False
 
-    if CheckWitness(authorized_spender):
+    res = removeTokenFromOwnersList(ctx, t_from, t_id)
+    if res == False:
+        print("unable to transfer token")
+        return False
 
-        res = removeTokenFromOwnersList(ctx, t_from, t_id)
-        if res == False:
-            print("unable to transfer token")
-            return False
+    addTokenToOwnersList(ctx, t_to, t_id)
 
-        addTokenToOwnersList(ctx, t_to, t_id)
+    Put(ctx, t_id, t_to)
 
-        Put(ctx, t_id, t_to)
+    # remove the approval for this token
+    Delete(ctx, approval_key)
 
-        # remove the approval for this token
-        Delete(ctx, approval_key)
+    print("transfer complete")
 
-        print("transfer complete")
+    OnTransfer(t_from, t_to, 1)
+    OnNFTTransfer(t_from, t_to, t_id)
 
-        OnTransfer(t_from, t_to, 1)
-        OnNFTTransfer(t_from, t_to, t_id)
+    return True
 
-        return True
-
-    print("transfer by tx sender not approved by token owner")
-    return False
 
 def do_approve(ctx, t_spender, t_id, revoke):
 
