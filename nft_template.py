@@ -430,10 +430,10 @@ def removeTokenFromOwnersList(ctx, t_owner, t_id):
         if (id == t_id):
             lasttoken_idx = length - 1
             swapkey = concat(t_owner, lasttoken_idx)
-            swapToken = Get(ctx, t_owner, lasttoken_idx)
+            swapToken = Get(ctx, swapkey)
             Put(ctx, tokkey, swapToken)
             Delete(ctx, swapkey)
-            Put(ctx, lasttoken_idx)
+            
             print("removed token from owners list")
             newbalance = length - 1
             if newbalance > 0:
