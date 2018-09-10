@@ -1,0 +1,154 @@
+<pre>
+  NEP: <to be assigned>
+  Title: Non-Fungible Token Standard
+  Author: Joe Stewart <hal0x2328@splyse.tech>, Shane Mann <fetter@splyse.tech>, Jonathan Winter <jonathan@splyse.tech>
+  Type: Standard
+  Status: Draft
+  Created: 2018-09-10
+</pre>
+
+==Abstract==
+
+This NEP defines a standard non-fungible token system for the NEO Smart Economy.
+
+==Motivation==
+
+NFTs are required to track, exchange and enforce ownership of digital assets. A non-fungible token (NFT) can be thought of like a property deed - each one is unique and carries some non-mutable information (e.g. the physical address of the property). Other information, such as the owner of the property, can be changed.
+
+==Specification==
+
+===Methods===
+
+====name====
+
+<pre>
+public static string name()
+</pre>
+
+Returns the name of the token. e.g. <code>"MyNFT"</code>. 
+
+This method MUST always return the same value every time it is invoked. 
+
+====symbol====
+
+<pre>
+public static string symbol()
+</pre>
+
+Returns a short string symbol of the token managed in this contract. e.g. <code>"MNFT"</code>. This symbol SHOULD be short (3-8 characters is recommended), with no whitespace characters or new-lines and SHOULD be limited to the uppercase latin alphabet (i.e. the 26 letters used in English). 
+
+This method MUST always return the same value every time it is invoked. 
+
+====totalSupply====
+
+<pre>
+public static BigInteger totalSupply()
+</pre>
+
+Returns the total token supply deployed in the system.
+
+====transfer====
+
+<pre>
+public static bool transfer(byte[] to, byte[] tokenid)
+</pre>
+
+Transfers token with id <code>tokenid</code> to address <code>to</code>.
+
+The parameter <code>tokenid</code> SHOULD be a valid NFT. If not, this method SHOULD <code>throw</code> an exception.
+
+The parameter <code>to</code> SHOULD be a 20-byte address. If not, this method SHOULD <code>throw</code> an exception.
+
+The function SHOULD return <code>false</code> if the token that will be transferred has more than one owner.
+
+If the method succeeds, it MUST fire the <code>transfer</code> event, and MUST return <code>true</code>, even if the token is sent to the owner himself.
+
+The function SHOULD check whether the owner address equals the caller contract hash. If so, the transfer SHOULD be processed; If not, the function SHOULD use the SYSCALL <code>Neo.Runtime.CheckWitness</code> to verify the transfer.
+
+If the <code>to</code> address is a deployed contract, the function SHOULD check the <code>payable</code> flag of this contract to decide whether it should transfer the tokens to this contract.
+
+If the transfer is not processed, the function SHOULD return <code>false</code>.
+
+<pre>
+public static bool transfer(byte[] from, byte[] to, BigInteger amount, byte[] tokenid)
+</pre>
+
+''OPTIONAL'': This method MUST be implemented if <code>decimals() > 0</code>.
+
+Transfers an <code>amount</code> of tokens with id <code>tokenid</code> from address <code>from</code> to address <code>to</code>.
+
+The parameter <code>tokenid</code> SHOULD be a valid NFT. If not, this method SHOULD <code>throw</code> an exception.
+
+The parameters <code>from</code> and <code>to</code> SHOULD be 20-byte addresses. If not, this method SHOULD <code>throw</code> an exception.
+
+The parameter <code>amount</code> SHOULD be greater than or equal to <code>0</code> and SHOULD be less than or equal to <code>pow(10, decimals())</code>. If not, this method SHOULD <code>throw</code> an exception.
+
+The function SHOULD return <code>false</code> if the <code>from</code> account balance does not have enough tokens to spend.
+
+If the method succeeds, it MUST fire the <code>transfer</code> event, and MUST return <code>true</code>, even if the <code>amount</code> is <code>0</code>, or the token is sent to the owner himself.
+
+The function SHOULD check whether the <code>from</code> address equals the caller contract hash. If so, the transfer SHOULD be processed; If not, the function SHOULD use the SYSCALL <code>Neo.Runtime.CheckWitness</code> to verify the transfer.
+
+If the <code>to</code> address is a deployed contract, the function SHOULD check the <code>payable</code> flag of this contract to decide whether it should transfer the tokens to this contract.
+
+If the transfer is not processed, the function SHOULD return <code>false</code>.
+
+====ownerOf====
+
+<pre>
+public static enumerator ownerOf(byte[] tokenid)
+</pre>
+
+Returns an <code>enumerator</code> that contains all the co-owners that own the specified token.
+
+The parameter <code>tokenid</code> SHOULD be a valid NFT. If not, this method SHOULD <code>throw</code> an exception.
+
+====tokenURI====
+
+<pre>
+public static string tokenURI(byte[] tokenid)
+</pre>
+
+Returns a distinct Uniform Resource Identifier (URI) for a given asset. The URI data of a token supplies a reference to get more information about a specific token or its data.
+
+The parameter <code>tokenid</code> SHOULD be a valid NFT. If not, this method SHOULD <code>throw</code> an exception.
+
+====balanceOf====
+
+<pre>
+public static BigInteger balanceOf(byte[] owner, byte[] tokenid)
+</pre>
+
+Returns the balance of the specified token for the specified owner's account.
+
+The parameter <code>tokenid</code> SHOULD be a valid NFT. If not, this method SHOULD <code>throw</code> an exception.
+
+The parameter <code>owner</code> SHOULD be a 20-byte address. If not, this method SHOULD <code>throw</code> an exception.
+
+If the <code>owner</code> is an unused address, or it's not the owner of the specified token, this method SHOULD return <code>0</code>.
+
+====tokensOfOwner====
+
+<pre>
+public static enumerator tokensOfOwner(byte[] owner)
+</pre>
+
+Returns an <code>enumerator</code> that contains all the tokens owned by the specified address.
+
+The parameter <code>owner</code> SHOULD be a 20-byte address. If not, this method SHOULD <code>throw</code> an exception.
+
+===Events===
+
+====transfer====
+
+<pre>
+public static event transfer(byte[] from, byte[] to, BigInteger amount, byte[] tokenid)
+</pre>
+
+MUST trigger when tokens are transferred, including zero value transfers.
+
+A token contract which creates new tokens SHOULD trigger a <code>transfer</code> event with the <code>from</code> address set to <code>null</code> when tokens are created.
+
+==Rationale==
+
+==Implementation==
