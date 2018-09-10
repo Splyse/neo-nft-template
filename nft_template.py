@@ -24,6 +24,7 @@ from boa.builtins import concat, list
 from boa.interop.Neo.Action import RegisterAction
 from boa.interop.Neo.App import DynamicAppCall
 from boa.interop.Neo.Blockchain import GetContract
+# from boa.interop.Neo.Contract import IsPayable
 from boa.interop.Neo.Iterator import IterNext, IterKey, IterValue
 from boa.interop.Neo.Runtime import GetTrigger, CheckWitness, Log, Notify
 from boa.interop.Neo.Storage import GetContext, Get, Put, Delete, Find
@@ -67,7 +68,7 @@ def Main(operation, args):
 	- supportedStandards(): returns a list of supported standards {"NEP-10", "NEP-5"}
 	- symbol(): returns token symbol
 	- tokenProperties(token_id): returns a token's read-only data
-	- tokensOfOwner(owner, starting_index): returns a list that contains ten of the tokens
+	- tokensOfOwner(owner, start_index): returns a list that contains ten of the tokens
 		owned by the specified address starting at the specified index.
 	- tokenURI(token_id): Returns a distinct Uniform Resource Identifier (URI) for a given asset.
 		The URI data of a token supplies a reference to get more information about a specific token or its data.
