@@ -40,6 +40,7 @@ TOKEN_CIRC_KEY = b'in_circulation'
 # This can be found in ``neo-python`` with the wallet open, use ``wallet`` command
 TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 
+
 OnApprove = RegisterAction('approve', 'addr_from', 'addr_to', 'amount')
 OnNFTApprove = RegisterAction('NFTapprove', 'addr_from', 'addr_to', 'tokenid')
 OnTransfer = RegisterAction('transfer', 'addr_from', 'addr_to', 'amount')
@@ -118,9 +119,6 @@ def Main(operation, args):
             else:
                 return TOKEN_SYMBOL
 
-        elif operation == 'totalSupply':
-            return Get(ctx, TOKEN_CIRC_KEY)
-
         elif operation == 'supportedStandards':
             supported_standards = Get(ctx, 'supportedStandards')
             if supported_standards:
@@ -131,14 +129,14 @@ def Main(operation, args):
         elif operation == 'postMintContract':
             return Get(ctx, 'postMintContract')
 
+        elif operation == 'totalSupply':
+            return Get(ctx, TOKEN_CIRC_KEY)
+
         arg_error = 'incorrect arg length'
 
-        if operation == 'balanceOf':
+        if operation == 'allowance':
             if len(args) == 1:
-                if len(args[0]) == 20:
-                    return Get(ctx, args[0])
-                Notify('invalid address')
-                return False
+                return Get(ctx, concat('approved/', args[0]))
 
             Notify(arg_error)
             return False
@@ -152,32 +150,12 @@ def Main(operation, args):
             Notify(arg_error)
             return False
 
-        elif operation == 'allowance':
+        elif operation == 'balanceOf':
             if len(args) == 1:
-                return Get(ctx, concat('approved/', args[0]))
-
-            Notify(arg_error)
-            return False
-
-        elif operation == 'transferFrom':
-            if len(args) >= 3:
-                return do_transfer_from(ctx, args)
-
-            Notify(arg_error)
-            return False
-
-        elif operation == 'transfer':
-            if len(args) >= 2:
-                # GetCallingScriptHash() can't be done within the function because the
-                # calling script hash changes depending on where the function is called
-                return do_transfer(ctx, GetCallingScriptHash(), args)
-
-            Notify(arg_error)
-            return False
-
-        elif operation == 'tokensOfOwner':
-            if len(args) == 2:
-                return do_tokens_of_owner(ctx, args[0], args[1])
+                if len(args[0]) == 20:
+                    return Get(ctx, args[0])
+                Notify('invalid address')
+                return False
 
             Notify(arg_error)
             return False
@@ -201,6 +179,29 @@ def Main(operation, args):
             Notify(arg_error)
             return False
 
+        elif operation == 'transfer':
+            if len(args) >= 2:
+                # GetCallingScriptHash() can't be done within the function because the
+                # calling script hash changes depending on where the function is called
+                return do_transfer(ctx, GetCallingScriptHash(), args)
+
+            Notify(arg_error)
+            return False
+
+        elif operation == 'transferFrom':
+            if len(args) >= 3:
+                return do_transfer_from(ctx, args)
+
+            Notify(arg_error)
+            return False
+
+        elif operation == 'tokensOfOwner':
+            if len(args) == 2:
+                return do_tokens_of_owner(ctx, args[0], args[1])
+
+            Notify(arg_error)
+            return False
+
         elif operation == 'uri':
             if len(args) == 1:
                 return Get(ctx, concat('uri/', args[0]))
@@ -210,7 +211,21 @@ def Main(operation, args):
 
         # Administrative operations
         if CheckWitness(TOKEN_CONTRACT_OWNER):
-            if operation == 'setName':
+            if operation == 'mintToken':
+                if len(args) >= 2:
+                    return do_mint_token(ctx, args)
+
+                Notify(arg_error)
+                return False
+
+            elif operation == 'modifyURI':
+                if len(args) == 2:
+                    return do_modify_token(ctx, args[0], args[1])
+
+                Notify(arg_error)
+                return False
+
+            elif operation == 'setName':
                 if len(args) == 1:
                     return do_set_config(ctx, 'name', args[0])
 
@@ -220,13 +235,6 @@ def Main(operation, args):
             elif operation == 'setSymbol':
                 if len(args) == 1:
                     return do_set_config(ctx, 'symbol', args[0])
-
-                Notify(arg_error)
-                return False
-
-            elif operation == 'setSupportedStandards':
-                if len(args) == 1:
-                    return do_set_config(ctx, 'supportedStandards', args[0])
 
                 Notify(arg_error)
                 return False
@@ -242,16 +250,9 @@ def Main(operation, args):
                 Notify(arg_error)
                 return False
 
-            elif operation == 'mintToken':
-                if len(args) >= 2:
-                    return do_mint_token(ctx, args)
-
-                Notify(arg_error)
-                return False
-
-            elif operation == 'modifyURI':
-                if len(args) == 2:
-                    return do_modify_token(ctx, args[0], args[1])
+            elif operation == 'setSupportedStandards':
+                if len(args) == 1:
+                    return do_set_config(ctx, 'supportedStandards', args[0])
 
                 Notify(arg_error)
                 return False
