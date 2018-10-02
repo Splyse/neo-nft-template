@@ -69,7 +69,7 @@ In the method definitions below, we provide both the definitions of the function
 ====supportedStandards====
 * Syntax: <code>supportedStandards()</code>
 * Return: <code>String</code>
-* Remarks: <code>supportedStandards()</code> returns the standards supported by the token. Returns 'NEP-10' if standards have not been reset.
+* Remarks: <code>supportedStandards()</code> returns the standards supported by the token.
 
 ====symbol====
 * Syntax: <code>symbol()</code>
