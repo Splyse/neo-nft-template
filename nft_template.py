@@ -31,15 +31,13 @@ from boa.interop.Neo.TriggerType import Application, Verification
 from boa.interop.System.ExecutionEngine import (GetExecutingScriptHash, GetCallingScriptHash,
                                                 GetEntryScriptHash)
 
+# This is the script hash of the address for the owner of the contract
+# This can be found in ``neo-python`` with the wallet open, use ``wallet`` command
+TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 TOKEN_NAME = 'Non-Fungible Token'
 TOKEN_SYMBOL = 'NFT'
 TOKEN_CIRC_KEY = b'in_circulation'
 # TOKEN_DECIMALS = 0  # nft is indivisible
-
-# This is the script hash of the address for the owner of the contract
-# This can be found in ``neo-python`` with the wallet open, use ``wallet`` command
-TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-
 
 OnApprove = RegisterAction('approve', 'addr_from', 'addr_to', 'amount')
 OnNFTApprove = RegisterAction('NFTapprove', 'addr_from', 'addr_to', 'tokenid')
@@ -124,7 +122,7 @@ def Main(operation, args):
             if supported_standards:
                 return supported_standards
             else:
-                return 'NEP-10'
+                return Serialize(['NEP-10'])
 
         elif operation == 'postMintContract':
             return Get(ctx, 'postMintContract')
@@ -226,6 +224,13 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setName':
+                """Sets the token name
+
+                :param list args: 
+                    0: str token_name: new token name
+                :return: True upon config success
+                :rtype: boolean
+                """
                 if len(args) == 1:
                     return do_set_config(ctx, 'name', args[0])
 
@@ -233,6 +238,13 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setSymbol':
+                """Sets the token symbol
+
+                :param list args: 
+                    0: str token_symbol: new token symbol
+                :return: True upon config success
+                :rtype: boolean
+                """
                 if len(args) == 1:
                     return do_set_config(ctx, 'symbol', args[0])
 
@@ -240,9 +252,24 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setPostMintContract':
+                """Sets the token's post mint contract
+
+                :param list args: 
+                    0: byte[] postMintContract: new post mint contract
+                :return: True upon config success
+                :rtype: boolean
+                """
                 if len(args) == 1:
                     if len(args[0]) == 20:
-                        return do_set_config(ctx, 'postMintContract', args[0])
+                        if GetContract(args[0]):
+                            if GetIsPayable(args[0]):
+                                return do_set_config(ctx, 'postMintContract', args[0])
+
+                            Notify('contract is not payable')
+                            return False
+
+                        Notify('address is not a contract')
+                        return False
 
                     Notify('invalid address')
                     return False
@@ -251,8 +278,19 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setSupportedStandards':
-                if len(args) == 1:
-                    return do_set_config(ctx, 'supportedStandards', args[0])
+                """Sets the token supported standards
+                'NEP-10' must be included in the array, so I'm requiring that it must be the first 
+                element in the array
+
+                :param list args: new supported standards
+                :return: True upon config success
+                :rtype: boolean
+                """
+                if len(args) >= 1:
+                    if args[0] != 'NEP-10':
+                        Notify("NEP-10 must be the first arg")
+                        return False
+                    return do_set_config(ctx, 'supportedStandards', Serialize(args))
 
                 Notify(arg_error)
                 return False
@@ -674,9 +712,6 @@ def add_token_to_owners_list(ctx, t_owner, t_id):
     :rtype: integer
     """
     length = Get(ctx, t_owner)  # number of tokens the owner has
-    if len(length) == b'\x00':
-        length = 0
-
     Put(ctx, concat(t_owner, t_id), t_id)  # store owner's new token
     length += 1  # increment the owner's balance
     Put(ctx, t_owner, length)  # store owner's new balance
