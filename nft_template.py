@@ -760,7 +760,6 @@ def transfer_to_smart_contract(ctx, args, is_mint):
     Log('transfer accepted by recipient contract')
     return True
 
-
 def do_set_config(ctx, key, value):
     """Sets or deletes a config key
 
