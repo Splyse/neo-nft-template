@@ -1,5 +1,5 @@
 <pre>
-  NEP: 10/NFT-1
+  NEP: 11/NFT-1
   Title: Non-Fungible Token Standard
   Author: Joe Stewart hal0x2328@splyse.tech, Shane Mann fetter@splyse.tech, Jonathan Winter jonathan@splyse.tech
   Type: Standard
@@ -22,14 +22,14 @@ In the method definitions below, we provide both the definitions of the function
 ===Methods===
 
 ====allowance====
-* Syntax: <code>allowance(tokenid)</code>
+* Syntax: <code>allowance(token_id)</code>
 * Return: <code>ByteArray</code>
-* Remarks: <code>allowance(tokenid)</code> returns the approved third party spender of <code>tokenid</code>.
+* Remarks: <code>allowance(token_id)</code> returns the approved third party spender of <code>token_id</code>.
 
 ====approve====
-* Syntax: <code>approve(receiver, tokenid, revoke)</code>
+* Syntax: <code>approve(receiver, token_id, revoke)</code>
 * Return: <code>Boolean</code>
-* Remarks: <code>approve()</code> approves token <code>tokenid</code> to be transferred to <code>receiver</code> using the <code>transferFrom()</code> method. If <code>revoke</code> is set to <code>1</code> the approval is revoked. A value of <code>True</code> is returned if the operation is approved. <code>False</code> is returned if the approval is denied because of incorrect permissions (owner is not in fact the owner, for example).
+* Remarks: <code>approve()</code> approves token <code>token_id</code> to be transferred to <code>receiver</code> using the <code>transferFrom()</code> method. If <code>revoke</code> is set to <code>1</code> the approval is revoked. A value of <code>True</code> is returned if the operation is approved. <code>False</code> is returned if the approval is denied because of incorrect permissions (owner is not in fact the owner, for example).
 
 ====balanceOf====
 * Syntax: <code>balanceOf(owner)</code>
@@ -42,7 +42,7 @@ In the method definitions below, we provide both the definitions of the function
 * Remarks: <code>mintToken()</code> creates a new non-fungible token. This fails and returns <code>False</code> if the user is not the contract owner. This returns the newly created token's id if the user is the contract owner. Token will be sent to <code>owner</code> upon creation if passed. An <code>extra_arg</code> can be passed in if <code>owner</code> is a smart contract.
 
 ====modifyURI====
-* Syntax: <code>modifyURI(tokenid, URI)</code>
+* Syntax: <code>modifyURI(token_id, URI)</code>
 * Return: <code>Boolean</code>
 * Remarks: <code>modifyURI()</code> modifies a token's URI. This fails and returns <code>False</code> if the user is not the contract owner. The URI data of a token supplies a reference to get more information about a specific token or its data.
 
@@ -52,9 +52,9 @@ In the method definitions below, we provide both the definitions of the function
 * Remarks: <code>name()</code> returns the name of the token.
 
 ====ownerOf====
-* Syntax: <code>ownerOf(tokenid)</code>
+* Syntax: <code>ownerOf(token_id)</code>
 * Return: <code>ByteArray</code>
-* Remarks: <code>ownerOf()</code> returns the owner of token with id <code>tokenid</code>.
+* Remarks: <code>ownerOf()</code> returns the owner of token with id <code>token_id</code>.
 
 ====postMintContract====
 * Syntax: <code>postMintContract()</code>
@@ -62,9 +62,9 @@ In the method definitions below, we provide both the definitions of the function
 * Remarks: <code>postMintContract()</code> returns the contract address that minted tokens get sent to by default.
 
 ====properties====
-* Syntax: <code>properties(tokenid)</code>
+* Syntax: <code>properties(token_id)</code>
 * Return: <code>ByteArray</code>
-* Remarks: <code>tokenROData()</code> returns the read-only data for token with id <code>tokenid</code>. Read-only data represents immutable data contained in the token, i.e., a property address for a property or the artist's name for a work of art.
+* Remarks: <code>properties()</code> returns the read-only data for token with id <code>token_id</code>. Read-only data represents immutable data contained in the token, i.e., a property address for a property or the artist's name for a work of art.
 
 ====supportedStandards====
 * Syntax: <code>supportedStandards()</code>
@@ -77,9 +77,9 @@ In the method definitions below, we provide both the definitions of the function
 * Remarks: <code>symbol()</code> returns the token symbol.
 
 ====tokensOfOwner====
-* Syntax: <code>tokensOfOwner(owner, startindex)</code>
+* Syntax: <code>tokensOfOwner(owner, start_index)</code>
 * Return: <code>List[Integer]</code>
-* Remarks: <code>tokensOfOwner()</code> returns, at most, ten of the tokens owned by <code>owner</code> beginning at index <code>startindex</code>.
+* Remarks: <code>tokensOfOwner()</code> returns, at most, ten of the tokens owned by <code>owner</code> beginning at index <code>start_index</code>.
 
 ====totalSupply====
 * Syntax: <code>totalSupply()</code>
@@ -87,19 +87,19 @@ In the method definitions below, we provide both the definitions of the function
 * Remarks: <code>totalSupply()</code> returns the total token supply deployed in the system.
 
 ====transfer====
-* Syntax: <code>transfer(from, to, tokenid)</code>
+* Syntax: <code>transfer(from, to, token_id)</code>
 * Return: <code>Boolean</code>
-* Remarks: <code>transfer()</code> transfers token with id <code>tokenid</code> from address <code>from</code> to address <code>to</code>. If the <code>from</code> address does not equal the sender of the transaction this returns <code>False</code>, <code>True</code> otherwise.
+* Remarks: <code>transfer()</code> transfers token with id <code>token_id</code> from address <code>from</code> to address <code>to</code>. If the <code>from</code> address does not equal the sender of the transaction this returns <code>False</code>, <code>True</code> otherwise.
 
 ====transferFrom====
-* Syntax: <code>transferFrom(from, to, tokenid)</code>
+* Syntax: <code>transferFrom(from, to, token_id)</code>
 * Return: <code>Boolean</code>
-* Remarks: <code>transferFrom</code> transfers a token with id <code>tokenid</code> from address <code>from</code> to address <code>to</code> if the from address has been approved by the <code>approve()</code> method. If the <code>from</code> address is not the owner of the token or if there is no approval this returns <code>False</code>, <code>True</code> otherwise.
+* Remarks: <code>transferFrom()</code> transfers a token with id <code>token_id</code> from address <code>from</code> to address <code>to</code> if the from address has been approved by the <code>approve()</code> method. If the <code>from</code> address is not the owner of the token or if there is no approval this returns <code>False</code>, <code>True</code> otherwise.
 
 ====uri====
-* Syntax: <code>uri(tokenid)</code>
+* Syntax: <code>uri(token_id)</code>
 * Return: <code>String</code>
-* Remarks: <code>tokenURI()</code> returns the URI of token with id <code>tokenid</code>. The URI data of a token supplies a reference to get more information about a specific token or its data.
+* Remarks: <code>uri()</code> returns the URI of token with id <code>token_id</code>. The URI data of a token supplies a reference to get more information about a specific token or its data.
 
 ==Rationale==
 
