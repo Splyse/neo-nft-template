@@ -11,19 +11,18 @@ The NFT proposal standard for the Neo Smart Economy is currently in development.
 The operations of the NFT template contract are:  
 
   * **allowance**(tokenid): returns approved third-party spender of a token
-  * **approve**(owner, spender, tokenid, revoke): approve third party to spend a token
+  * **approve**(receiver, tokenid, revoke): approve third party to spend a token
   * **balanceOf**(owner): returns owner's current total tokens owned
-  * **circulation**(): returns current number of tokens in circulation
-  * **decimals**(): returns number of decimals of token
-  * **mintToken**(owner, ROData, RWData, URI): create a new NFT token
-  * **modifyRWData**(tokenid, RWData): modify a token's read/write data
+  * **mintToken**(properties, URI, owner, extra_arg): create a new NFT token
   * **modifyURI**(tokenid, URI): modify a token's URI
   * **name**(): returns name of token
   * **ownerOf**(tokenid): returns owner of a token
+  * **postMintContract**(): returns the contract that a freshly minted token gets sent to by default
+  * **properties**(tokenid): returns a token's read-only data
+  * **supportedStandards**(): returns a list of supported standards {"NEP-10"}
   * **symbol**(): returns token symbol
-  * **tokenOfOwnerByIndex**(owner, idx): returns one token from owner's collection
-  * **tokenROData**(tokenid): returns a token's read-only data
-  * **tokenRWData**(tokenid): returns a token's read/write data
-  * **tokenURI**(tokenid): returns a token's URI
+  * **tokensOfOwner**(owner, startindex): returns a list that contains less than or equal to ten of the tokens owned by the specified address starting at the specified index.
+  * **totalSupply**(): Returns the total token supply deployed in the system
   * **transfer**(from, to, tokenid): transfers a token
   * **transferFrom**(from, to, tokenid): transfers a token by authorized spender
+  * **uri**(tokenid): returns a token's URI

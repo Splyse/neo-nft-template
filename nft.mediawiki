@@ -1,0 +1,112 @@
+<pre>
+  NEP: 10/NFT-1
+  Title: Non-Fungible Token Standard
+  Author: Joe Stewart hal0x2328@splyse.tech, Shane Mann fetter@splyse.tech, Jonathan Winter jonathan@splyse.tech
+  Type: Standard
+  Status: Draft
+  Created: 2018-04-18
+</pre>
+
+==Abstract==
+
+The NEP-10 NFT-1 proposal defines a standard non-fungible token system for the NEO Smart Economy.
+
+==Motivation==
+
+NFTs are required to track, exchange and enforce ownership of digital assets. A non-fungible token (NFT) can be thought of like a property deed - each one is unique and carries some non-mutable information (e.g. the physical address of the property). Other information, such as the owner of the property, can be changed. Each token is indivisible in the same sense that a dog or a work of art cannot be divided.
+
+==Specification==
+
+In the method definitions below, we provide both the definitions of the functions, as they are defined in the contract, as well as the invoke parameters.
+
+===Methods===
+
+====allowance====
+* Syntax: <code>allowance(tokenid)</code>
+* Return: <code>byte[]</code>
+* Remarks: <code>allowance(tokenid)</code> returns the approved third party spender of <code>tokenid</code>.
+
+====approve====
+* Syntax: <code>approve(receiver, tokenid, revoke)</code>
+* Return: <code>Boolean</code>
+* Remarks: <code>approve()</code> approves token <code>tokenid</code> to be transferred to <code>receiver</code> using the <code>transferFrom()</code> method. If <code>revoke</code> is set to <code>1</code> the approval is revoked. A value of <code>True</code> is returned if the operation is approved. <code>False</code> is returned if the approval is denied because of incorrect permissions (owner is not in fact the owner, for example).
+
+====balanceOf====
+* Syntax: <code>balanceOf(owner)</code>
+* Return: <code>BigInteger</code>
+* Remarks: <code>balanceOf()</code> returns current total tokens owned by <code>owner</code>.
+
+====mintToken====
+* Syntax: <code>mintToken(properties, URI, owner, extra_arg)</code>
+* Return: <code>Integer</code>
+* Remarks: <code>mintToken()</code> creates a new non-fungible token. This fails and returns <code>False</code> if the user is not the contract owner. This returns the newly created token's id if the user is the contract owner. Token will be sent to <code>owner</code> upon creation if passed. An <code>extra_arg</code> can be passed in if <code>owner</code> is a smart contract.
+
+====modifyURI====
+* Syntax: <code>modifyURI(tokenid, URI)</code>
+* Return: <code>Boolean</code>
+* Remarks: <code>modifyURI()</code> modifies a token's URI. This fails and returns <code>False</code> if <code>owner</code> is not the contract owner. The URI data of a token supplies a reference to get more information about a specific token or its data.
+
+====name====
+* Syntax: <code>name()</code>
+* Return: <code>String</code>
+* Remarks: <code>name()</code> returns the name of the token.
+
+====ownerOf====
+* Syntax: <code>ownerOf(tokenid)</code>
+* Return: <code>byte[]</code>
+* Remarks: <code>ownerOf()</code> returns the owner of token with id <code>tokenid</code>.
+
+====postMintContract====
+* Syntax: <code>postMintContract()</code>
+* Return: <code>byte[]</code>
+* Remarks: <code>postMintContract()</code> returns the contract address that minted tokens get sent to by default.
+
+====properties====
+* Syntax: <code>properties(tokenid)</code>
+* Return: <code>byte[]</code>
+* Remarks: <code>tokenROData()</code> returns the read-only data for token with id <code>tokenid</code>. Read-only data represents immutable data contained in the token, i.e., a property address for a property or the artist's name for a work of art.
+
+====supportedStandards====
+* Syntax: <code>supportedStandards()</code>
+* Return: <code>String</code>
+* Remarks: <code>supportedStandards()</code> returns the standards supported by the token.
+
+====symbol====
+* Syntax: <code>symbol()</code>
+* Return: <code>String</code>
+* Remarks: <code>symbol()</code> returns the token symbol.
+
+====tokensOfOwner====
+* Syntax: <code>tokensOfOwner(owner, startindex)</code>
+* Return: <code>byte[]</code>
+* Remarks: <code>tokensOfOwner()</code> returns, at most, ten of the tokens owned by <code>owner</code> beginning at index <code>startindex</code>.
+
+====totalSupply====
+* Syntax: <code>totalSupply()</code>
+* Return: <code>Integer</code>
+* Remarks: <code>totalSupply()</code> returns the total token supply deployed in the system.
+
+====transfer====
+* Syntax: <code>transfer(from, to, tokenid)</code>
+* Return: <code>Boolean</code>
+* Remarks: <code>transfer()</code> transfers token with id <code>tokenid</code> from address <code>from</code> to address <code>to</code>. If the <code>from</code> address does not equal the sender of the transaction this returns <code>False</code>, <code>True</code> otherwise.
+
+====transferFrom====
+* Syntax: <code>transferFrom(from, to, tokenid)</code>
+* Return: <code>Boolean</code>
+* Remarks: <code>transferFrom</code> transfers a token with id <code>tokenid</code> from address <code>from</code> to address <code>to</code> if the from address has been approved by the <code>approve()</code> method. If the <code>from</code> address is not the owner of the token or if there is no approval this returns <code>False</code>, <code>True</code> otherwise.
+
+====uri====
+* Syntax: <code>uri(tokenid)</code>
+* Return: <code>String</code>
+* Remarks: <code>tokenURI()</code> returns the URI of token with id <code>tokenid</code>. The URI data of a token supplies a reference to get more information about a specific token or its data.
+
+==Rationale==
+
+'''Sequential token identifiers''' are preferred as this makes the tokens less costly to enumerate as a starting point and offset would be all that are needed to list or locate tokens.
+
+'''Standardized read-only token data access''' ensures contract and API authors all use one consistent interface and terminology. How the data is represented internally is left to the developer as data use should be specific to those needs. Therefore, marshalling is intentionally unspecified by this proposal.
+
+==Implementation==
+
+Splyse NFT Template: https://github.com/Splyse/neo-nft-template
