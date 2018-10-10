@@ -176,13 +176,6 @@ def Main(operation, args):
             Notify(ARG_ERROR)
             return False
 
-        elif operation == 'modifyURI':
-            if len(args) == 2:
-                return do_modify_uri(ctx, args[0], args[1])
-
-            Notify(ARG_ERROR)
-            return False
-
         elif operation == 'ownerOf':
             if len(args) == 1:
                 t_owner = Get(ctx, args[0])
@@ -248,6 +241,13 @@ def Main(operation, args):
             if operation == 'mintToken':
                 if len(args) >= 2:
                     return do_mint_token(ctx, args)
+
+                Notify(ARG_ERROR)
+                return False
+
+            elif operation == 'modifyURI':
+                if len(args) == 2:
+                    return do_modify_uri(ctx, args[0], args[1])
 
                 Notify(ARG_ERROR)
                 return False
