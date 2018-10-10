@@ -1,4 +1,4 @@
-"""Non-Fungible Token Smart Contract Template
+"""NEO Non-Fungible Token Smart Contract Template
 
 Authors: Joe Stewart, Jonathan Winter
 Email: hal0x2328@splyse.tech, jonathan@splyse.tech
@@ -17,8 +17,9 @@ neo> testinvoke {this_contract_hash} tokensOfOwner [{your_wallet_address}, 0]
 
 # Note: I haven't found any documentation on best practice for when
 one should use Runtime.Log vs Runtime.Notify, so I am using Log
-for recording changes on the blockchain/events (transfers, approvals,
-minting, and config changes) and Notify for everything else.
+for recording changes on the blockchain that aren't covered by the
+SmartContract Event Notifications (primarily config changes) and
+Notify for everything else.
 """
 
 from boa.builtins import concat, list
@@ -37,8 +38,7 @@ from boa.interop.System.ExecutionEngine import (GetCallingScriptHash,
 # This is the script hash of the address for the owner of the contract
 # This can be found in ``neo-python`` with the wallet open,
 # use ``wallet`` command
-# TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00
-# \x00\x00\x00\x00\x00\x00\x00\x00'
+# TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 TOKEN_CONTRACT_OWNER = b'\x0f&\x1f\xe5\xc5,k\x01\xa4{\xbd\x02\xbdM\xd3?\xf1\x88\xc9\xde'
 TOKEN_NAME = 'Non-Fungible Token Template'
 TOKEN_SYMBOL = 'NFT'
@@ -47,12 +47,16 @@ TOKEN_CIRC_KEY = b'in_circulation'
 # Smart Contract Event Notifications
 OnApprove = RegisterAction('approve', 'addr_from', 'addr_to', 'amount')
 OnNFTApprove = RegisterAction('NFTapprove', 'addr_from', 'addr_to', 'tokenid')
-
 OnTransfer = RegisterAction('transfer', 'addr_from', 'addr_to', 'amount')
 OnNFTTransfer = RegisterAction('NFTtransfer', 'addr_from', 'addr_to', 'tokenid')
-
 OnMint = RegisterAction('mint', 'addr_to', 'amount')
 OnNFTMint = RegisterAction('NFTmint', 'addr_to', 'tokenid')
+
+# common errors
+ARG_ERROR = 'incorrect arg length'
+INVALID_ADDRESS_ERROR = 'invalid address'
+PERMISSION_ERROR = 'incorrect permission'
+TOKEN_DNE_ERROR = 'token does not exist'
 
 
 def Main(operation, args):
@@ -100,17 +104,6 @@ def Main(operation, args):
     - setSymbol(symbol): sets the token's symbol
     - setSupportedStandards(supported_standards): sets the supported
         standards
-
-    Note: compiled using neo-python v0.8.0 with neo-boa v0.5.3
-    Note: for some operations, it appears as though there has been a
-    change in neo-boa where integers are no longer decoded to bytes.
-    So, some methods may not work if you pass in an integer for
-    token_id. If so, convert the integer to a bytes object
-    before passing it.
-    Example:
-        >>> x = 1349
-        >>> x.to_bytes((x.bit_length() + 7) // 8, 'little')
-        b'E\x05'
     """
     # The trigger determines whether this smart contract is being run in
     # 'verification' mode or 'application'
@@ -155,13 +148,11 @@ def Main(operation, args):
         elif operation == 'totalSupply':
             return Get(ctx, TOKEN_CIRC_KEY)
 
-        arg_error = 'incorrect arg length'
-
         if operation == 'allowance':
             if len(args) == 1:
                 return Get(ctx, concat('approved/', args[0]))
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'approve':
@@ -171,7 +162,7 @@ def Main(operation, args):
                 # depending on where the function is called
                 return do_approve(ctx, GetCallingScriptHash(), args[0], args[1], args[2])
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'balanceOf':
@@ -179,17 +170,17 @@ def Main(operation, args):
                 if len(args[0]) == 20:
                     return Get(ctx, args[0])
 
-                Notify('invalid address')
+                Notify(INVALID_ADDRESS_ERROR)
                 return False
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'modifyURI':
             if len(args) == 2:
                 return do_modify_uri(ctx, args[0], args[1])
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'ownerOf':
@@ -198,17 +189,22 @@ def Main(operation, args):
                 if len(t_owner) == 20:
                     return t_owner
 
-                Notify('token does not exist')
+                Notify(TOKEN_DNE_ERROR)
                 return False
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'properties':
             if len(args) == 1:
-                return Get(ctx, concat('properties/', args[0]))
+                token_properties = Get(ctx, concat('properties/', args[0]))
+                if token_properties:
+                    return token_properties
 
-            Notify(arg_error)
+                Notify(TOKEN_DNE_ERROR)
+                return False
+
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'transfer':
@@ -218,28 +214,33 @@ def Main(operation, args):
                 # depending on where the function is called
                 return do_transfer(ctx, GetCallingScriptHash(), args)
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'transferFrom':
             if len(args) >= 3:
                 return do_transfer_from(ctx, args)
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'tokensOfOwner':
             if len(args) == 2:
                 return do_tokens_of_owner(ctx, args[0], args[1])
 
-            Notify(arg_error)
+            Notify(ARG_ERROR)
             return False
 
         elif operation == 'uri':
             if len(args) == 1:
-                return Get(ctx, concat('uri/', args[0]))
+                token_uri = Get(ctx, concat('uri/', args[0]))
+                if token_uri:
+                    return token_uri
 
-            Notify(arg_error)
+                Notify(TOKEN_DNE_ERROR)
+                return False
+
+            Notify(ARG_ERROR)
             return False
 
         # Administrative operations
@@ -248,7 +249,7 @@ def Main(operation, args):
                 if len(args) >= 2:
                     return do_mint_token(ctx, args)
 
-                Notify(arg_error)
+                Notify(ARG_ERROR)
                 return False
 
             elif operation == 'setName':
@@ -262,7 +263,7 @@ def Main(operation, args):
                 if len(args) == 1:
                     return do_set_config(ctx, 'name', args[0])
 
-                Notify(arg_error)
+                Notify(ARG_ERROR)
                 return False
 
             elif operation == 'setSymbol':
@@ -276,7 +277,7 @@ def Main(operation, args):
                 if len(args) == 1:
                     return do_set_config(ctx, 'symbol', args[0])
 
-                Notify(arg_error)
+                Notify(ARG_ERROR)
                 return False
 
             elif operation == 'setPostMintContract':
@@ -289,17 +290,16 @@ def Main(operation, args):
                 """
                 if len(args) == 1:
                     if len(args[0]) == 20:
-                        contract = GetContract(args[0])
-                        if contract:
+                        if GetContract(args[0]):
                             return do_set_config(ctx, 'postMintContract', args[0])
 
                         Notify('address is not a contract')
                         return False
 
-                    Notify('invalid address')
+                    Notify(INVALID_ADDRESS_ERROR)
                     return False
 
-                Notify(arg_error)
+                Notify(ARG_ERROR)
                 return False
 
             elif operation == 'setSupportedStandards':
@@ -318,11 +318,11 @@ def Main(operation, args):
 
                     return do_set_config(ctx, 'supportedStandards', Serialize(args))
 
-                Notify(arg_error)
+                Notify(ARG_ERROR)
                 return False
 
         else:
-            Notify('unauthorized operation')
+            Notify(PERMISSION_ERROR)
             return False
 
         Notify('unknown operation')
@@ -341,7 +341,7 @@ def do_approve(ctx, caller, t_receiver, t_id, revoke):
     :rtype: boolean
     """
     if len(t_receiver) != 20:
-        Notify('invalid address')
+        Notify(INVALID_ADDRESS_ERROR)
         return False
 
     if len(revoke) == b'\x00':
@@ -349,15 +349,14 @@ def do_approve(ctx, caller, t_receiver, t_id, revoke):
 
     t_owner = Get(ctx, t_id)
     if len(t_owner) != 20:
-        Notify('token does not exist')
+        Notify(TOKEN_DNE_ERROR)
         return False
 
     if t_owner == t_receiver:
-        Notify('approved spend to self!')
+        Notify('approved spend to self')
         return True
 
     is_token_owner = CheckWitness(t_owner)
-
     if is_token_owner and GetEntryScriptHash() != caller:
         Notify('third party script is bouncing the signature to us')
         return False
@@ -374,7 +373,6 @@ def do_approve(ctx, caller, t_receiver, t_id, revoke):
             # log the revoking of previous approvals
             OnApprove(t_owner, t_receiver, b'\x00')
             OnNFTApprove(t_owner, '', t_id)
-            Log('previous token approval revoked')
             return True
 
         # approve this transfer
@@ -383,10 +381,9 @@ def do_approve(ctx, caller, t_receiver, t_id, revoke):
         # Log this approval event
         OnApprove(t_owner, t_receiver, 1)
         OnNFTApprove(t_owner, t_receiver, t_id)
-        Log('token approved for transfer')
         return True
 
-    Notify('incorrect permission')
+    Notify(PERMISSION_ERROR)
     return False
 
 
@@ -478,7 +475,7 @@ def do_modify_uri(ctx, t_id, t_data):
     """
     exists = Get(ctx, t_id)
     if len(exists) != 20:
-        Notify('token does not exist')
+        Notify(TOKEN_DNE_ERROR)
         return False
 
     Put(ctx, concat('uri/', t_id), t_data)
@@ -556,7 +553,7 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
 
         return Serialize(token_list)
 
-    Notify('invalid address')
+    Notify(INVALID_ADDRESS_ERROR)
     return False
 
 
@@ -578,16 +575,16 @@ def do_transfer(ctx, caller, args):
     t_id = args[1]
 
     if len(t_to) != 20:
-        Notify('invalid address')
+        Notify(INVALID_ADDRESS_ERROR)
         return False
 
     t_owner = Get(ctx, t_id)
     if len(t_owner) != 20:
-        Notify('token does not exist')
+        Notify(TOKEN_DNE_ERROR)
         return False
 
     if t_owner == t_to:
-        Notify('transfer to self!')
+        Notify('transfer to self')
         return True
 
     # Verifies that the calling contract has verified the required
@@ -613,7 +610,7 @@ def do_transfer(ctx, caller, args):
                 return False
         else:
             if len(args) > 2:
-                Notify('incorrect arg length')
+                Notify(ARG_ERROR)
                 return False
 
         res = remove_token_from_owners_list(ctx, t_owner, t_id)
@@ -631,7 +628,7 @@ def do_transfer(ctx, caller, args):
         OnNFTTransfer(t_owner, t_to, t_id)
         return True
 
-    Notify('tx sender is not the token owner')
+    Notify(PERMISSION_ERROR)
     return False
 
 
@@ -654,16 +651,16 @@ def do_transfer_from(ctx, args):
     t_id = args[2]
 
     if len(t_from) != 20 or len(t_to) != 20:
-        Notify('invalid address')
+        Notify(INVALID_ADDRESS_ERROR)
         return False
 
     if t_from == t_to:
-        Notify('transfer to self!')
+        Notify('transfer to self')
         return True
 
     t_owner = Get(ctx, t_id)
     if len(t_owner) != 20:
-        Notify('token does not exist')
+        Notify(TOKEN_DNE_ERROR)
         return False
 
     if t_from != t_owner:
@@ -698,7 +695,7 @@ def do_transfer_from(ctx, args):
             # extra args to transfer(), this could be a phishing
             # attempt so reject the transfer
             if len(args) > 3:
-                Notify('incorrect arg length')
+                Notify(ARG_ERROR)
                 return False
 
         res = remove_token_from_owners_list(ctx, t_from, t_id)
@@ -715,7 +712,7 @@ def do_transfer_from(ctx, args):
         OnNFTTransfer(t_from, t_to, t_id)
         return True
 
-    Notify('spend not approved')
+    Notify(PERMISSION_ERROR)
     return False
 
 
@@ -725,7 +722,7 @@ def add_token_to_owners_list(ctx, t_owner, t_id):
 
     :param StorageContext ctx: current store context
     :param byte[] t_owner: token owner (could be either a smart
-        contract ora wallet address)
+        contract or a wallet address)
     :param bytes t_id: token ID
     :return: token id
     :rtype: integer
@@ -788,7 +785,7 @@ def transfer_to_smart_contract(ctx, t_from, args, is_mint):
     t_id = args[1]
 
     if len(t_from) != 20 or len(t_to) != 20:
-        Notify('invalid address')
+        Notify(INVALID_ADDRESS_ERROR)
         return False
 
     # invoke the onNFTTransfer operation of the recipient contract,
