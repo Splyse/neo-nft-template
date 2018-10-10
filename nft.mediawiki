@@ -1,5 +1,5 @@
 <pre>
-  NEP: 10/NFT-1
+  NEP: 11/NFT-1
   Title: Non-Fungible Token Standard
   Author: Joe Stewart hal0x2328@splyse.tech, Shane Mann fetter@splyse.tech, Jonathan Winter jonathan@splyse.tech
   Type: Standard
