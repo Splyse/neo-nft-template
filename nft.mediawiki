@@ -23,7 +23,7 @@ In the method definitions below, we provide both the definitions of the function
 
 ====allowance====
 * Syntax: <code>allowance(tokenid)</code>
-* Return: <code>byte[]</code>
+* Return: <code>ByteArray</code>
 * Remarks: <code>allowance(tokenid)</code> returns the approved third party spender of <code>tokenid</code>.
 
 ====approve====
@@ -33,7 +33,7 @@ In the method definitions below, we provide both the definitions of the function
 
 ====balanceOf====
 * Syntax: <code>balanceOf(owner)</code>
-* Return: <code>BigInteger</code>
+* Return: <code>Integer</code>
 * Remarks: <code>balanceOf()</code> returns current total tokens owned by <code>owner</code>.
 
 ====mintToken====
@@ -44,7 +44,7 @@ In the method definitions below, we provide both the definitions of the function
 ====modifyURI====
 * Syntax: <code>modifyURI(tokenid, URI)</code>
 * Return: <code>Boolean</code>
-* Remarks: <code>modifyURI()</code> modifies a token's URI. This fails and returns <code>False</code> if <code>owner</code> is not the contract owner. The URI data of a token supplies a reference to get more information about a specific token or its data.
+* Remarks: <code>modifyURI()</code> modifies a token's URI. This fails and returns <code>False</code> if the user is not the contract owner. The URI data of a token supplies a reference to get more information about a specific token or its data.
 
 ====name====
 * Syntax: <code>name()</code>
@@ -53,22 +53,22 @@ In the method definitions below, we provide both the definitions of the function
 
 ====ownerOf====
 * Syntax: <code>ownerOf(tokenid)</code>
-* Return: <code>byte[]</code>
+* Return: <code>ByteArray</code>
 * Remarks: <code>ownerOf()</code> returns the owner of token with id <code>tokenid</code>.
 
 ====postMintContract====
 * Syntax: <code>postMintContract()</code>
-* Return: <code>byte[]</code>
+* Return: <code>ByteArray</code>
 * Remarks: <code>postMintContract()</code> returns the contract address that minted tokens get sent to by default.
 
 ====properties====
 * Syntax: <code>properties(tokenid)</code>
-* Return: <code>byte[]</code>
+* Return: <code>ByteArray</code>
 * Remarks: <code>tokenROData()</code> returns the read-only data for token with id <code>tokenid</code>. Read-only data represents immutable data contained in the token, i.e., a property address for a property or the artist's name for a work of art.
 
 ====supportedStandards====
 * Syntax: <code>supportedStandards()</code>
-* Return: <code>String</code>
+* Return: <code>List[String]</code>
 * Remarks: <code>supportedStandards()</code> returns the standards supported by the token.
 
 ====symbol====
@@ -78,7 +78,7 @@ In the method definitions below, we provide both the definitions of the function
 
 ====tokensOfOwner====
 * Syntax: <code>tokensOfOwner(owner, startindex)</code>
-* Return: <code>byte[]</code>
+* Return: <code>List[Integer]</code>
 * Remarks: <code>tokensOfOwner()</code> returns, at most, ten of the tokens owned by <code>owner</code> beginning at index <code>startindex</code>.
 
 ====totalSupply====
