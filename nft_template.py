@@ -27,8 +27,8 @@ from boa.interop.Neo.Action import RegisterAction
 from boa.interop.Neo.App import DynamicAppCall
 from boa.interop.Neo.Blockchain import GetContract
 from boa.interop.Neo.Iterator import Iterator
-from boa.interop.Neo.Runtime import (CheckWitness, GetTrigger, Log, Notify,
-                                     Serialize)
+from boa.interop.Neo.Runtime import (CheckWitness, GetTrigger, Log,
+                                     Notify, Serialize)
 from boa.interop.Neo.Storage import GetContext, Get, Put, Delete, Find
 from boa.interop.Neo.TriggerType import Application, Verification
 from boa.interop.System.ExecutionEngine import (GetCallingScriptHash,
@@ -73,9 +73,6 @@ def Main(operation, args):
     - approve(token_receiver, token_id, revoke): approve third party
         to spend a token
     - balanceOf(owner): returns owner's current total tokens owned
-    - mintToken(properties, URI, owner, extra_arg): create a new NFT
-        token with the specified properties and URI
-    - modifyURI(token_id, token_data): modify specified token's URI data
     - name(): returns name of token
     - ownerOf(token_id): returns the owner of the specified token.
     - postMintContract(): returns the contract that a freshly minted
@@ -97,16 +94,23 @@ def Main(operation, args):
         The URI data of a token supplies a reference to get more
         information about a specific token or its data.
 
-    setters
-    - setName(name): sets the name of the token
-    - setPostMintContract(contract_address): sets the contract freshly
-        minted tokens get sent to by default
-    - setSymbol(symbol): sets the token's symbol
-    - setSupportedStandards(supported_standards): sets the supported
-        standards
+    TOKEN_CONTRACT_OWNER operations:
+        - mintToken(properties, URI, owner, extra_arg): create a new
+            NFT token with the specified properties and URI
+        - modifyURI(token_id, token_data): modify specified token's
+            URI data
+
+        setters:
+        - setName(name): sets the name of the token
+        - setPostMintContract(contract_address): sets the contract
+            freshly minted tokens get sent to by default
+        - setSymbol(symbol): sets the token's symbol
+        - setSupportedStandards(supported_standards): sets the
+            supported standards, 'NEP-10' must be the first element
+            in the array
     """
-    # The trigger determines whether this smart contract is being run in
-    # 'verification' mode or 'application'
+    # The trigger determines whether this smart contract is being run
+    # in 'verification' mode or 'application'
     trigger = GetTrigger()
 
     # 'Verification' mode is used when trying to spend assets
@@ -253,13 +257,6 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setName':
-                """Sets the token name
-
-                :param list args:
-                    0: str token_name: new token name
-                :return: True upon config success
-                :rtype: boolean
-                """
                 if len(args) == 1:
                     return do_set_config(ctx, 'name', args[0])
 
@@ -267,13 +264,6 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setSymbol':
-                """Sets the token symbol
-
-                :param list args:
-                    0: str token_symbol: new token symbol
-                :return: True upon config success
-                :rtype: boolean
-                """
                 if len(args) == 1:
                     return do_set_config(ctx, 'symbol', args[0])
 
@@ -281,13 +271,6 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setPostMintContract':
-                """Sets the token's post mint contract
-
-                :param list args:
-                    0: byte[] postMintContract: new post mint contract
-                :return: True upon config success
-                :rtype: boolean
-                """
                 if len(args) == 1:
                     if len(args[0]) == 20:
                         if GetContract(args[0]):
@@ -303,17 +286,9 @@ def Main(operation, args):
                 return False
 
             elif operation == 'setSupportedStandards':
-                """Sets the token supported standards.
-                'NEP-10' must be included in the array, so I'm
-                requiring that it must be the first element in the array
-
-                :param list args: new supported standards
-                :return: True upon config success
-                :rtype: boolean
-                """
                 if len(args) >= 1:
                     if args[0] != 'NEP-10':
-                        Notify("NEP-10 must be the first arg")
+                        Notify('NEP-10 must be the first arg')
                         return False
 
                     return do_set_config(ctx, 'supportedStandards', Serialize(args))
@@ -397,7 +372,8 @@ def do_mint_token(ctx, args):
         1: bytes t_uri: token's uri
         2: byte[] t_owner (optional): default is postMintContract,
             can be a user address, or another smart contract
-        3: extra_arg (optional): extra arg to be passed to smart contract
+        3: extra_arg (optional): extra arg to be passed to smart
+            contract
     :return: new total supply of tokens
     :rtype: boolean or integer
     """
@@ -769,7 +745,8 @@ def remove_token_from_owners_list(ctx, t_owner, t_id):
 
 
 def transfer_to_smart_contract(ctx, t_from, args, is_mint):
-    """Transfers a token to a smart contract
+    """Transfers a token to a smart contract and triggers the
+    receiving contract's onNFTTransfer event
 
     :param StorageContext ctx: current store context
     :param byte[] t_from: transfer from address (who is sending the NFT)
