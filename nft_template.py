@@ -8,6 +8,9 @@ License: MIT
 
 Based on NEP5 template by Tom Saunders
 
+Example build and testinvoke a function:
+neo> build nft_template.py test 0710 05 True True False supportedStandards []
+
 Compile and deploy with neo-python:
 neo> build nft_template.py
 neo> import contract nft_template.avm 0710 05 True True False
@@ -570,7 +573,12 @@ def do_token_data(ctx, t_id):
     # extra data pertaining to a particular token id easier.
     # Otherwise, they would have to parse the uri or properties key to
     # get the token id and then convert that to an integer (which I'm
-    # not sure can be done in neo-boa).
+    # not sure can be done in neo-boa) or do a call to tokensOfOwner
+    exists = Get(ctx, t_id)
+    if len(exists) != 20:
+        Notify(TOKEN_DNE_ERROR)
+        return False
+
     # token_key = concat('token/', t_id)
     prop_key = concat('properties/', t_id)
     uri_key = concat('uri/', t_id)
@@ -582,9 +590,10 @@ def do_token_data(ctx, t_id):
 
 
 def do_tokens_data_of_owner(ctx, t_owner, start_index):
-    """This method returns five of the owner's token's data starting at
-    the given index.
-    See `tokens_of_owner` for more detailed information behind rationale.
+    """This method returns five of the owner's token's id and
+    data starting at the given index.
+    See `do_tokens_of_owner` for more detailed information behind
+    rationale.
 
     :param StorageContext ctx: current store context
     :param bytes t_owner: token owner
