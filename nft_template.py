@@ -8,8 +8,8 @@ License: MIT
 
 Based on NEP5 template by Tom Saunders
 
-Example build and testinvoke a function:
-neo> build nft_template.py test 0710 05 True True False supportedStandards []
+Example test using neo-local:
+neo> build /smart-contracts/nft_template.py test 0710 05 True True False name []
 
 Compile and deploy with neo-python:
 neo> build nft_template.py
@@ -25,7 +25,7 @@ SmartContract Event Notifications (primarily config changes) and
 Notify for everything else.
 """
 
-from boa.builtins import concat, list
+from boa.builtins import concat
 from boa.interop.Neo.Action import RegisterAction
 from boa.interop.Neo.App import DynamicAppCall
 from boa.interop.Neo.Blockchain import GetContract
@@ -41,7 +41,10 @@ from boa.interop.System.ExecutionEngine import (GetCallingScriptHash,
 # This is the script hash of the address for the owner of the contract
 # This can be found in ``neo-python`` with the wallet open,
 # use ``wallet`` command
-# TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+# TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00
+# \x00\x00\x00\x00\x00\x00\x00\x00'
+# TOKEN_CONTRACT_OWNER = b'#\xba\'\x03\xc52c\xe8\xd6\xe5"\xdc2
+# 39\xdc\xd8\xee\xe9'
 TOKEN_CONTRACT_OWNER = b'\x0f&\x1f\xe5\xc5,k\x01\xa4{\xbd\x02\xbdM\xd3?\xf1\x88\xc9\xde'
 TOKEN_NAME = 'Non-Fungible Token Template'
 TOKEN_SYMBOL = 'NFT'
@@ -214,7 +217,7 @@ def Main(operation, args):
 
             Notify(ARG_ERROR)
             return False
-        
+
         elif operation == 'tokenData':
             if len(args) == 1:
                 return Serialize(do_token_data(ctx, args[0]))
@@ -400,7 +403,7 @@ def do_mint_token(ctx, args):
             can be a user address, or another smart contract
         3: extra_arg (optional): extra arg to be passed to smart
             contract
-    :return: new total supply of tokens
+    :return: mint success
     :rtype: bool
     """
     t_id = Get(ctx, TOKEN_CIRC_KEY)
@@ -531,32 +534,32 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
     :return: list of tokens
     :rtype: bool or list
     """
-    if len(t_owner) == 20:
-        if len(start_index) == b'\x00':
-            start_index = b'\x01'  # token id's cannot go below 1
+    if len(t_owner) != 20:
+        Notify(INVALID_ADDRESS_ERROR)
+        return False
 
-        start_key = concat(t_owner, start_index)
-        count = 0
-        token_list = []
-        token_iter = Find(ctx, t_owner)
-        # while loop explained: keep looping through the owner's list
-        # of tokens until 10 have been found beginning at the starting
-        # index.
-        # if statement explained: once a key has been found matching
-        # my search key (or of greater value),
-        # append the token id to the list, increment the counter,
-        # and disregard trying to find a matching key thereafter.
-        # (once a key has been found matching my search key
-        # (or greater), just get everything afterward while count < 10)
-        while token_iter.next() and (count < 10):
-            if (token_iter.Key >= start_key) or (count > 0):
-                token_list.append(token_iter.Value)
-                count += 1
+    if len(start_index) == b'\x00':
+        start_index = b'\x01'  # token id's cannot go below 1
 
-        return token_list
+    start_key = concat(t_owner, start_index)
+    count = 0
+    token_list = []
+    token_iter = Find(ctx, t_owner)
+    # while loop explained: keep looping through the owner's list
+    # of tokens until 10 have been found beginning at the starting
+    # index.
+    # if statement explained: once a key has been found matching
+    # my search key (or of greater value),
+    # append the token id to the list, increment the counter,
+    # and disregard trying to find a matching key thereafter.
+    # (once a key has been found matching my search key
+    # (or greater), just get everything afterward while count < 10)
+    while token_iter.next() and (count < 10):
+        if (token_iter.Key >= start_key) or (count > 0):
+            token_list.append(token_iter.Value)
+            count += 1
 
-    Notify(INVALID_ADDRESS_ERROR)
-    return False
+    return token_list
 
 
 def do_token_data(ctx, t_id):
@@ -608,45 +611,45 @@ def do_tokens_data_of_owner(ctx, t_owner, start_index):
         corresponding token's data
     :rtype: bool or dict
     """
-    if len(t_owner) == 20:
-        if len(start_index) == b'\x00':
-            start_index = b'\x01'  # token id's cannot go below 1
+    if len(t_owner) != 20:
+        Notify(INVALID_ADDRESS_ERROR)
+        return False
 
-        start_key = concat(t_owner, start_index)
-        count = 0
-        token_dict = {}
-        token_iter = Find(ctx, t_owner)
-        # while loop explained: keep looping through the owner's list
-        # of tokens until 5 have been found beginning at the starting
-        # index.
-        # if statement explained: once a key has been found matching
-        # my search key (or of greater value),
-        # add the token id to the dictionary along with its data,
-        # increment the counter,
-        # and disregard trying to find a matching key thereafter.
-        # (once a key has been found matching my search key
-        # (or greater), just get everything afterward while count < 5)
-        while token_iter.next() and (count < 5):
-            if (token_iter.Key >= start_key) or (count > 0):
-                token_data = do_token_data(ctx, token_iter.Value)
-                if token_data is False:
-                    return False
-                # keys
-                # token_key = concat('token/', token_iter.Value)
-                prop_key = concat('properties/', token_iter.Value)
-                uri_key = concat('uri/', token_iter.Value)
+    if len(start_index) == b'\x00':
+        start_index = b'\x01'  # token id's cannot go below 1
 
-                # update dictionary
-                token_dict[concat('token/', token_iter.Value)] = token_iter.Value
-                token_dict[prop_key] = token_data[prop_key]
-                token_dict[uri_key] = token_data[uri_key]
+    start_key = concat(t_owner, start_index)
+    count = 0
+    token_dict = {}
+    token_iter = Find(ctx, t_owner)
+    # while loop explained: keep looping through the owner's list
+    # of tokens until 5 have been found beginning at the starting
+    # index.
+    # if statement explained: once a key has been found matching
+    # my search key (or of greater value),
+    # add the token id to the dictionary along with its data,
+    # increment the counter,
+    # and disregard trying to find a matching key thereafter.
+    # (once a key has been found matching my search key
+    # (or greater), just get everything afterward while count < 5)
+    while token_iter.next() and (count < 5):
+        if (token_iter.Key >= start_key) or (count > 0):
+            token_data = do_token_data(ctx, token_iter.Value)
+            if token_data is False:
+                return False
+            # keys
+            # token_key = concat('token/', token_iter.Value)
+            prop_key = concat('properties/', token_iter.Value)
+            uri_key = concat('uri/', token_iter.Value)
 
-                count += 1
+            # update dictionary
+            token_dict[concat('token/', token_iter.Value)] = token_iter.Value
+            token_dict[prop_key] = token_data[prop_key]
+            token_dict[uri_key] = token_data[uri_key]
 
-        return token_dict
+            count += 1
 
-    Notify(INVALID_ADDRESS_ERROR)
-    return False
+    return token_dict
 
 
 def do_transfer(ctx, caller, args):
@@ -816,7 +819,7 @@ def add_token_to_owners_list(ctx, t_owner, t_id):
     :param byte[] t_owner: token owner (could be either a smart
         contract or a wallet address)
     :param bytes t_id: token ID
-    :return: token id
+    :return: successfully added token to owner's list
     :rtype: bool
     """
     length = Get(ctx, t_owner)  # number of tokens the owner has
