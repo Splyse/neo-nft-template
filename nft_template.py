@@ -25,10 +25,11 @@ SmartContract Event Notifications (primarily config changes) and
 Notify for everything else.
 """
 
-from boa.builtins import concat
+from boa.builtins import concat, list
 from boa.interop.Neo.Action import RegisterAction
 from boa.interop.Neo.App import DynamicAppCall
 from boa.interop.Neo.Blockchain import GetContract
+from boa.interop.Neo.Iterator import Iterator
 from boa.interop.Neo.Runtime import (CheckWitness, GetTrigger, Log,
                                      Notify, Serialize)
 from boa.interop.Neo.Storage import GetContext, Get, Put, Delete, Find
@@ -311,11 +312,11 @@ def Main(operation, args):
 
             elif operation == 'setSupportedStandards':
                 if len(args) >= 1:
-                    if args[0] != 'NEP-10':
-                        Notify('NEP-10 must be the first arg')
-                        return False
+                    if args[0] == 'NEP-10':
+                        return do_set_config(ctx, 'supportedStandards', Serialize(args))
 
-                    return do_set_config(ctx, 'supportedStandards', Serialize(args))
+                    Notify('NEP-10 must be the first arg')
+                    return False
 
                 Notify(ARG_ERROR)
                 return False
@@ -325,7 +326,7 @@ def Main(operation, args):
             return False
 
         Notify('unknown operation')
-        return False
+
     return False
 
 
@@ -338,7 +339,7 @@ def do_approve(ctx, caller, t_receiver, t_id, revoke):
     :param bytes t_id: int: token id
     :param bytes revoke: set to 1 to revoke previous approval
     :return: approval success
-    :rtype: boolean
+    :rtype: bool
     """
     if len(t_receiver) != 20:
         Notify(INVALID_ADDRESS_ERROR)
@@ -400,7 +401,7 @@ def do_mint_token(ctx, args):
         3: extra_arg (optional): extra arg to be passed to smart
             contract
     :return: new total supply of tokens
-    :rtype: boolean or integer
+    :rtype: bool
     """
     t_id = Get(ctx, TOKEN_CIRC_KEY)
     # the int 0 is represented as b'' in neo-boa, this caused bugs
@@ -462,7 +463,7 @@ def do_mint_token(ctx, args):
     # Log this minting event
     OnMint(t_owner, 1)
     OnNFTMint(t_owner, t_id)
-    return t_id
+    return True
 
 
 def do_modify_uri(ctx, t_id, t_data):
@@ -472,7 +473,7 @@ def do_modify_uri(ctx, t_id, t_data):
     :param bytes t_id: token id
     :param bytes t_data: token data
     :return: URI modification success
-    :rtype: boolean
+    :rtype: bool
     """
     exists = Get(ctx, t_id)
     if len(exists) != 20:
@@ -491,7 +492,7 @@ def do_set_config(ctx, key, value):
     :param str key: key
     :param value: value
     :return: config success
-    :rtype: boolean
+    :rtype: bool
     """
     if len(value) > 0:
         Put(ctx, key, value)
@@ -524,11 +525,11 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
         '800a00010100010200010300010400010500010600010700010800010900010a'}]
 
     :param StorageContext ctx: current store context
-    :param bytes t_owner: token owner
+    :param byte[] t_owner: token owner
     :param bytes start_index: the index to start searching through the
         owner's tokens
     :return: list of tokens
-    :rtype: list
+    :rtype: bool or list
     """
     if len(t_owner) == 20:
         if len(start_index) == b'\x00':
@@ -559,13 +560,14 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
 
 
 def do_token_data(ctx, t_id):
-    """Returns the specified token's properties and uri data as a dict
+    """Returns the specified token's id, properties and uri data
+    as a dict
 
     :param StorageContext ctx: current store context
     :param bytes t_id: token id
-    :return: dictionary of property and uri keys mapped to their
+    :return: dictionary of id, property, and uri keys mapped to their
         corresponding token's data
-    :rtype: dict
+    :rtype: bool or dict
     """
     # `token_key` may seem a bit redundant, however I realized that
     # smart contract developers need an easy way to get an
@@ -579,14 +581,17 @@ def do_token_data(ctx, t_id):
         Notify(TOKEN_DNE_ERROR)
         return False
 
+    # keys
     # token_key = concat('token/', t_id)
     prop_key = concat('properties/', t_id)
     uri_key = concat('uri/', t_id)
-    return {
+
+    token_data = {
         concat('token/', t_id): t_id,
         prop_key: Get(ctx, prop_key),
         uri_key: Get(ctx, uri_key)
     }
+    return token_data
 
 
 def do_tokens_data_of_owner(ctx, t_owner, start_index):
@@ -596,12 +601,12 @@ def do_tokens_data_of_owner(ctx, t_owner, start_index):
     rationale.
 
     :param StorageContext ctx: current store context
-    :param bytes t_owner: token owner
+    :param byte[] t_owner: token owner
     :param bytes start_index: the index to start searching through the
         owner's tokens
-    :return: dictionary of properties and uri keys mapped to their
+    :return: dictionary of id, properties, and uri keys mapped to their
         corresponding token's data
-    :rtype: dict
+    :rtype: bool or dict
     """
     if len(t_owner) == 20:
         if len(start_index) == b'\x00':
@@ -624,12 +629,18 @@ def do_tokens_data_of_owner(ctx, t_owner, start_index):
         while token_iter.next() and (count < 5):
             if (token_iter.Key >= start_key) or (count > 0):
                 token_data = do_token_data(ctx, token_iter.Value)
+                if token_data is False:
+                    return False
+                # keys
                 # token_key = concat('token/', token_iter.Value)
                 prop_key = concat('properties/', token_iter.Value)
                 uri_key = concat('uri/', token_iter.Value)
+
+                # update dictionary
                 token_dict[concat('token/', token_iter.Value)] = token_iter.Value
                 token_dict[prop_key] = token_data[prop_key]
                 token_dict[uri_key] = token_data[uri_key]
+
                 count += 1
 
         return token_dict
@@ -650,7 +661,7 @@ def do_transfer(ctx, caller, args):
         2: extra_arg: optional argument that can be passed (for use
             only with smart contracts)
     :return: transfer success
-    :rtype: boolean
+    :rtype: bool
     """
     t_to = args[0]
     t_id = args[1]
@@ -725,7 +736,7 @@ def do_transfer_from(ctx, args):
         3: extra_arg: optional argument that can be passed (for use
             only with smart contracts)
     :return: transferFrom success
-    :rtype: boolean
+    :rtype: bool
     """
     t_from = args[0]
     t_to = args[1]
@@ -806,14 +817,14 @@ def add_token_to_owners_list(ctx, t_owner, t_id):
         contract or a wallet address)
     :param bytes t_id: token ID
     :return: token id
-    :rtype: integer
+    :rtype: bool
     """
     length = Get(ctx, t_owner)  # number of tokens the owner has
     Put(ctx, concat(t_owner, t_id), t_id)  # store owner's new token
     length += 1  # increment the owner's balance
     Put(ctx, t_owner, length)  # store owner's new balance
     Log("added token to owner's list and incremented owner's balance")
-    return t_id
+    return True
 
 
 def remove_token_from_owners_list(ctx, t_owner, t_id):
@@ -823,7 +834,7 @@ def remove_token_from_owners_list(ctx, t_owner, t_id):
     :param byte[] t_owner: token owner
     :param bytes t_id: token id
     :return: token removal success
-    :rtype: boolean
+    :rtype: bool
     """
     length = Get(ctx, t_owner)  # get how many tokens this owner owns
     # this should be impossible, but just in case, leaving it here
@@ -861,7 +872,7 @@ def transfer_to_smart_contract(ctx, t_from, args, is_mint):
         2: extra_arg (optional)
     :param bool is_mint: whether or not the token is being minted
     :return: transfer success
-    :rtype: boolean
+    :rtype: bool
     """
     t_to = args[0]
     t_id = args[1]
