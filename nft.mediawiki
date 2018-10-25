@@ -38,8 +38,8 @@ In the method definitions below, we provide both the definitions of the function
 
 ====mintToken====
 * Syntax: <code>mintToken(properties, URI, owner, extra_arg)</code>
-* Return: <code>Integer</code>
-* Remarks: <code>mintToken()</code> creates a new non-fungible token. This fails and returns <code>False</code> if the user is not the contract owner. This returns the newly created token's id if the user is the contract owner. Token will be sent to <code>owner</code> upon creation if passed. An <code>extra_arg</code> can be passed in if <code>owner</code> is a smart contract.
+* Return: <code>Boolean</code>
+* Remarks: <code>mintToken()</code> creates a new non-fungible token. This fails and returns <code>False</code> if the user is not the contract owner, returns <code>True</code> otherwise. Token will be sent to <code>owner</code> upon creation if passed. An <code>extra_arg</code> can be passed in if <code>owner</code> is a smart contract.
 
 ====modifyURI====
 * Syntax: <code>modifyURI(token_id, URI)</code>
@@ -68,7 +68,7 @@ In the method definitions below, we provide both the definitions of the function
 
 ====supportedStandards====
 * Syntax: <code>supportedStandards()</code>
-* Return: <code>List[String]</code>
+* Return: <code>Array[String]</code>
 * Remarks: <code>supportedStandards()</code> returns the standards supported by the token.
 
 ====symbol====
@@ -76,9 +76,19 @@ In the method definitions below, we provide both the definitions of the function
 * Return: <code>String</code>
 * Remarks: <code>symbol()</code> returns the token symbol.
 
+====tokenData====
+* Syntax: <code>tokenData(token_id)</code>
+* Return: <code>Dict</code>
+* Remarks: <code>tokenData()</code> returns a dictionary where `token/{token_id}`, `properties/{token_id}`, and `uri/{token_id}` are mapped to a token's id, properties, and uri, respectively.
+
+====tokensDataOfOwner====
+* Syntax: <code>tokensDataOfOwner(owner, start_index)</code>
+* Return: <code>Dict</code>
+* Remarks: <code>tokensDataOfOwner()</code> returns a dictionary where `token/{token_id}`, `properties/{token_id}`, and `uri/{token_id}` are mapped to, at most five, token's corresponding values (id, properties, and uri) where each token is owned by <code>owner</code> beginning at index <code>start_index</code>.
+
 ====tokensOfOwner====
 * Syntax: <code>tokensOfOwner(owner, start_index)</code>
-* Return: <code>List[Integer]</code>
+* Return: <code>Array[Integer]</code>
 * Remarks: <code>tokensOfOwner()</code> returns, at most, ten of the tokens owned by <code>owner</code> beginning at index <code>start_index</code>.
 
 ====totalSupply====

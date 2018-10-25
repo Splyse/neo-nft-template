@@ -89,14 +89,14 @@ def Main(operation, args):
     - tokenData(token_id): returns a dictionary where token, property,
         and uri keys map to the corresponding data for the given
         `token_id`
-    - tokensOfOwner(owner, starting_index): returns a list that
-        contains less than or equal to ten of the tokens owned by
-        the specified address starting at the `starting_index`.
     - tokensDataOfOwner(owner, starting_index): returns a dictionary
         that contains less than or equal to five of the tokens (where
         token, properties, and uri keys map to their corresponding data
         for each token id) owned by the specified address starting at
         the `starting_index`.
+    - tokensOfOwner(owner, starting_index): returns a list that
+        contains less than or equal to ten of the tokens owned by
+        the specified address starting at the `starting_index`.
     - totalSupply(): Returns the total token supply deployed in the
         system.
     - transfer(to, token_id): transfers a token
