@@ -41,10 +41,9 @@ from boa.interop.System.ExecutionEngine import (GetCallingScriptHash,
 # This is the script hash of the address for the owner of the contract
 # This can be found in ``neo-python`` with the wallet open,
 # use ``wallet`` command
-# TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00
-# \x00\x00\x00\x00\x00\x00\x00\x00'
-TOKEN_CONTRACT_OWNER = b'#\xba\'\x03\xc52c\xe8\xd6\xe5"\xdc2 39\xdc\xd8\xee\xe9'
+# TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 # TOKEN_CONTRACT_OWNER = b'\x0f&\x1f\xe5\xc5,k\x01\xa4{\xbd\x02\xbdM\xd3?\xf1\x88\xc9\xde'
+TOKEN_CONTRACT_OWNER = b'#\xba\'\x03\xc52c\xe8\xd6\xe5"\xdc2 39\xdc\xd8\xee\xe9'
 TOKEN_NAME = 'Non-Fungible Token Template'
 TOKEN_SYMBOL = 'NFT'
 TOKEN_CIRC_KEY = b'in_circulation'
@@ -80,8 +79,6 @@ def Main(operation, args):
     - balanceOf(owner): returns owner's current total tokens owned
     - name(): returns name of token
     - ownerOf(token_id): returns the owner of the specified token.
-    - postMintContract(): returns the contract that a freshly minted
-        token gets sent to by default
     - properties(token_id): returns a token's read-only data
     - supportedStandards(): returns a list of supported standards
         {"NEP-10"}
