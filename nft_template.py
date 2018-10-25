@@ -99,8 +99,8 @@ def Main(operation, args):
         the specified address starting at the `starting_index`.
     - totalSupply(): Returns the total token supply deployed in the
         system.
-    - transfer(to, token_id): transfers a token
-    - transferFrom(from, to, token_id): allows a third party to
+    - transfer(to, token_id, extra_arg): transfers a token
+    - transferFrom(from, to, token_id, extra_arg): allows a third party to
         execute an approved transfer
     - uri(token_id): Returns a distinct Uniform Resource Identifier
         (URI) for a given asset.
@@ -219,7 +219,34 @@ def Main(operation, args):
 
         elif operation == 'tokenData':
             if len(args) == 1:
-                return Serialize(do_token_data(ctx, args[0]))
+                # check to make sure the token exists
+                if len(Get(ctx, args[0])) == 20:
+                    return Serialize(do_token_data(ctx, args[0]))
+
+                Notify(TOKEN_DNE_ERROR)
+                return False
+
+            Notify(ARG_ERROR)
+            return False
+
+        elif operation == 'tokensDataOfOwner':
+            if len(args) == 2:
+                tokens_data_of_owner = do_tokens_data_of_owner(ctx, args[0], args[1])
+                if tokens_data_of_owner:
+                    return Serialize(tokens_data_of_owner)
+
+                return False
+
+            Notify(ARG_ERROR)
+            return False
+
+        elif operation == 'tokensOfOwner':
+            if len(args) == 2:
+                tokens_of_owner = do_tokens_of_owner(ctx, args[0], args[1])
+                if tokens_of_owner:
+                    return Serialize(tokens_of_owner)
+
+                return False
 
             Notify(ARG_ERROR)
             return False
@@ -237,20 +264,6 @@ def Main(operation, args):
         elif operation == 'transferFrom':
             if len(args) >= 3:
                 return do_transfer_from(ctx, args)
-
-            Notify(ARG_ERROR)
-            return False
-
-        elif operation == 'tokensOfOwner':
-            if len(args) == 2:
-                return Serialize(do_tokens_of_owner(ctx, args[0], args[1]))
-
-            Notify(ARG_ERROR)
-            return False
-
-        elif operation == 'tokensDataOfOwner':
-            if len(args) == 2:
-                return Serialize(do_tokens_data_of_owner(ctx, args[0], args[1]))
 
             Notify(ARG_ERROR)
             return False
@@ -398,9 +411,9 @@ def do_mint_token(ctx, args):
     :param list args:
         0: byte[] t_properties: token's read only data
         1: bytes t_uri: token's uri
-        2: byte[] t_owner (optional): default is postMintContract,
-            can be a user address, or another smart contract
-        3: extra_arg (optional): extra arg to be passed to smart
+        2: byte[] t_owner (optional): token owner (the default owner of
+            a newly minted token is postMintContract)
+        3: extra_arg (optional): extra arg to be passed to a smart
             contract
     :return: mint success
     :rtype: bool
@@ -440,7 +453,7 @@ def do_mint_token(ctx, args):
     if len(t_owner) != 20:
         t_owner = Get(ctx, 'postMintContract')
         contract_args = [t_owner, t_id]
-        if len(args) == 3:  # append optional extra_arg
+        if len(args) == 3:  # append optional extra arg
             contract_args.append(args[2])
 
         success = transfer_to_smart_contract(ctx, this_contract, contract_args, True)
@@ -468,12 +481,12 @@ def do_mint_token(ctx, args):
     return True
 
 
-def do_modify_uri(ctx, t_id, t_data):
+def do_modify_uri(ctx, t_id, t_uri):
     """Modifies token URI
 
     :param StorageContext ctx: current store context
     :param bytes t_id: token id
-    :param bytes t_data: token data
+    :param bytes t_uri: token uri
     :return: URI modification success
     :rtype: bool
     """
@@ -482,28 +495,66 @@ def do_modify_uri(ctx, t_id, t_data):
         Notify(TOKEN_DNE_ERROR)
         return False
 
-    Put(ctx, concat('uri/', t_id), t_data)
+    Put(ctx, concat('uri/', t_id), t_uri)
     Log('token uri has been updated')
     return True
 
 
-def do_set_config(ctx, key, value):
-    """Sets or deletes a config key
+def do_tokens_data_of_owner(ctx, t_owner, start_index):
+    """This method returns five of the owner's token's id and
+    data starting at the given index.
+    See `do_tokens_of_owner` for more detailed information behind
+    rationale.
 
     :param StorageContext ctx: current store context
-    :param str key: key
-    :param value: value
-    :return: config success
-    :rtype: bool
+    :param byte[] t_owner: token owner
+    :param bytes start_index: the index to start searching through the
+        owner's tokens
+    :return: dictionary of id, properties, and uri keys mapped to their
+        corresponding token's data
+    :rtype: bool or dict
     """
-    if len(value) > 0:
-        Put(ctx, key, value)
-        Log('config key set')
-    else:
-        Delete(ctx, key)
-        Log('config key deleted')
+    if len(t_owner) != 20:
+        Notify(INVALID_ADDRESS_ERROR)
+        return False
 
-    return True
+    if len(start_index) == b'\x00':
+        start_index = b'\x01'  # token id's cannot go below 1
+
+    start_key = concat(t_owner, start_index)
+    count = 0
+    token_dict = {}
+    token_iter = Find(ctx, t_owner)
+    # while loop explained: keep looping through the owner's list
+    # of tokens until 5 have been found beginning at the starting
+    # index.
+    # if statement explained: once a key has been found matching
+    # my search key (or of greater value),
+    # add the token id to the dictionary along with its data,
+    # increment the counter,
+    # and disregard trying to find a matching key thereafter.
+    # (once a key has been found matching my search key
+    # (or greater), just get everything afterward while count < 5)
+    while token_iter.next() and (count < 5):
+        if (token_iter.Key >= start_key) or (count > 0):
+            token_data = do_token_data(ctx, token_iter.Value)
+            # keys
+            token_key = concat('token/', token_iter.Value)
+            prop_key = concat('properties/', token_iter.Value)
+            uri_key = concat('uri/', token_iter.Value)
+
+            # update dictionary
+            token_dict[token_key] = token_data[token_key]
+            token_dict[prop_key] = token_data[prop_key]
+            token_dict[uri_key] = token_data[uri_key]
+
+            count += 1
+
+    if len(token_dict) >= 1:
+        return token_dict
+
+    Notify(TOKEN_DNE_ERROR)
+    return False
 
 
 def do_tokens_of_owner(ctx, t_owner, start_index):
@@ -558,97 +609,11 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
             token_list.append(token_iter.Value)
             count += 1
 
-    return token_list
+    if len(token_list) >= 1:
+        return token_list
 
-
-def do_token_data(ctx, t_id):
-    """Returns the specified token's id, properties and uri data
-    as a dict
-
-    :param StorageContext ctx: current store context
-    :param bytes t_id: token id
-    :return: dictionary of id, property, and uri keys mapped to their
-        corresponding token's data
-    :rtype: bool or dict
-    """
-    # `token_key` may seem a bit redundant, however I realized that
-    # smart contract developers need an easy way to get an
-    # integer/bytes data type for the token id to make getting/adding
-    # extra data pertaining to a particular token id easier.
-    # Otherwise, they would have to parse the uri or properties key to
-    # get the token id and then convert that to an integer (which I'm
-    # not sure can be done in neo-boa) or do a call to tokensOfOwner
-    exists = Get(ctx, t_id)
-    if len(exists) != 20:
-        Notify(TOKEN_DNE_ERROR)
-        return False
-
-    # keys
-    # token_key = concat('token/', t_id)
-    prop_key = concat('properties/', t_id)
-    uri_key = concat('uri/', t_id)
-
-    token_data = {
-        concat('token/', t_id): t_id,
-        prop_key: Get(ctx, prop_key),
-        uri_key: Get(ctx, uri_key)
-    }
-    return token_data
-
-
-def do_tokens_data_of_owner(ctx, t_owner, start_index):
-    """This method returns five of the owner's token's id and
-    data starting at the given index.
-    See `do_tokens_of_owner` for more detailed information behind
-    rationale.
-
-    :param StorageContext ctx: current store context
-    :param byte[] t_owner: token owner
-    :param bytes start_index: the index to start searching through the
-        owner's tokens
-    :return: dictionary of id, properties, and uri keys mapped to their
-        corresponding token's data
-    :rtype: bool or dict
-    """
-    if len(t_owner) != 20:
-        Notify(INVALID_ADDRESS_ERROR)
-        return False
-
-    if len(start_index) == b'\x00':
-        start_index = b'\x01'  # token id's cannot go below 1
-
-    start_key = concat(t_owner, start_index)
-    count = 0
-    token_dict = {}
-    token_iter = Find(ctx, t_owner)
-    # while loop explained: keep looping through the owner's list
-    # of tokens until 5 have been found beginning at the starting
-    # index.
-    # if statement explained: once a key has been found matching
-    # my search key (or of greater value),
-    # add the token id to the dictionary along with its data,
-    # increment the counter,
-    # and disregard trying to find a matching key thereafter.
-    # (once a key has been found matching my search key
-    # (or greater), just get everything afterward while count < 5)
-    while token_iter.next() and (count < 5):
-        if (token_iter.Key >= start_key) or (count > 0):
-            token_data = do_token_data(ctx, token_iter.Value)
-            if token_data is False:
-                return False
-            # keys
-            token_key = concat('token/', token_iter.Value)
-            prop_key = concat('properties/', token_iter.Value)
-            uri_key = concat('uri/', token_iter.Value)
-
-            # update dictionary
-            token_dict[token_key] = token_data[token_key]
-            token_dict[prop_key] = token_data[prop_key]
-            token_dict[uri_key] = token_data[uri_key]
-
-            count += 1
-
-    return token_dict
+    Notify(TOKEN_DNE_ERROR)
+    return False
 
 
 def do_transfer(ctx, caller, args):
@@ -811,6 +776,55 @@ def do_transfer_from(ctx, args):
 
 
 # helper methods
+def do_set_config(ctx, key, value):
+    """Sets or deletes a config key
+
+    :param StorageContext ctx: current store context
+    :param str key: key
+    :param value: value
+    :return: config success
+    :rtype: bool
+    """
+    if len(value) > 0:
+        Put(ctx, key, value)
+        Log('config key set')
+    else:
+        Delete(ctx, key)
+        Log('config key deleted')
+
+    return True
+
+
+def do_token_data(ctx, t_id):
+    """Returns the specified token's id, properties and uri data
+    as a dict
+
+    :param StorageContext ctx: current store context
+    :param bytes t_id: token id
+    :return: dictionary of id, property, and uri keys mapped to their
+        corresponding token's data
+    :rtype: dict
+    """
+    # `token_key` may seem a bit redundant, however I realized that
+    # smart contract developers need an easy way to get an
+    # integer/bytes data type for the token id to make getting/adding
+    # extra data pertaining to a particular token id easier.
+    # Otherwise, they would have to parse the uri or properties key to
+    # get the token id and then convert that to an integer (which I'm
+    # not sure can be done in neo-boa) or do a call to tokensOfOwner
+    # keys
+    # token_key = concat('token/', t_id)
+    prop_key = concat('properties/', t_id)
+    uri_key = concat('uri/', t_id)
+
+    token_data = {
+        concat('token/', t_id): t_id,
+        prop_key: Get(ctx, prop_key),
+        uri_key: Get(ctx, uri_key)
+    }
+    return token_data
+
+
 def add_token_to_owners_list(ctx, t_owner, t_id):
     """Adds a token to the owner's list of tokens
 
