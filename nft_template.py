@@ -637,12 +637,12 @@ def do_tokens_data_of_owner(ctx, t_owner, start_index):
             if token_data is False:
                 return False
             # keys
-            # token_key = concat('token/', token_iter.Value)
+            token_key = concat('token/', token_iter.Value)
             prop_key = concat('properties/', token_iter.Value)
             uri_key = concat('uri/', token_iter.Value)
 
             # update dictionary
-            token_dict[concat('token/', token_iter.Value)] = token_iter.Value
+            token_dict[token_key] = token_data[token_key]
             token_dict[prop_key] = token_data[prop_key]
             token_dict[uri_key] = token_data[uri_key]
 
