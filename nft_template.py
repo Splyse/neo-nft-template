@@ -108,15 +108,14 @@ def Main(operation, args):
         information about a specific token or its data.
 
     TOKEN_CONTRACT_OWNER operations:
-        - mintToken(properties, URI, owner, extra_arg): create a new
-            NFT token with the specified properties and URI
+        - mintToken(owner, properties, URI, extra_arg): create a new
+            NFT token with the specified properties and URI and send it
+            to the specified owner
         - modifyURI(token_id, token_data): modify specified token's
             URI data
 
         setters:
         - setName(name): sets the name of the token
-        - setPostMintContract(contract_address): sets the contract
-            freshly minted tokens get sent to by default
         - setSymbol(symbol): sets the token's symbol
         - setSupportedStandards(supported_standards): sets the
             supported standards, 'NEP-10' must be the first element
@@ -158,9 +157,6 @@ def Main(operation, args):
                 return supported_standards
             else:
                 return Serialize(['NEP-10'])
-
-        elif operation == 'postMintContract':
-            return Get(ctx, 'postMintContract')
 
         elif operation == 'totalSupply':
             return Get(ctx, TOKEN_CIRC_KEY)
@@ -283,7 +279,7 @@ def Main(operation, args):
         # Administrative operations
         if CheckWitness(TOKEN_CONTRACT_OWNER):
             if operation == 'mintToken':
-                if len(args) >= 2:
+                if len(args) >= 3:
                     return do_mint_token(ctx, args)
 
                 Notify(ARG_ERROR)
@@ -306,21 +302,6 @@ def Main(operation, args):
             elif operation == 'setSymbol':
                 if len(args) == 1:
                     return do_set_config(ctx, 'symbol', args[0])
-
-                Notify(ARG_ERROR)
-                return False
-
-            elif operation == 'setPostMintContract':
-                if len(args) == 1:
-                    if len(args[0]) == 20:
-                        if GetContract(args[0]):
-                            return do_set_config(ctx, 'postMintContract', args[0])
-
-                        Notify('address is not a contract')
-                        return False
-
-                    Notify(INVALID_ADDRESS_ERROR)
-                    return False
 
                 Notify(ARG_ERROR)
                 return False
@@ -409,10 +390,9 @@ def do_mint_token(ctx, args):
 
     :param StorageContext ctx: current store context
     :param list args:
-        0: byte[] t_properties: token's read only data
-        1: bytes t_uri: token's uri
-        2: byte[] t_owner (optional): token owner (the default owner of
-            a newly minted token is postMintContract)
+        0: byte[] t_owner: token owner
+        1: byte[] t_properties: token's read only data
+        2: bytes t_uri: token's uri
         3: extra_arg (optional): extra arg to be passed to a smart
             contract
     :return: mint success
@@ -424,50 +404,31 @@ def do_mint_token(ctx, args):
     # This is the reason why token id's start at 1 instead
     t_id += 1
 
-    exists = Get(ctx, t_id)  # this should never already exist
-    if len(exists) == 20:
+    # this should never already exist
+    if len(Get(ctx, t_id)) == 20:
         Notify('token already exists')
         return False
+    
+    t_owner = args[0]
+    if len(t_owner) != 20:
+        Notify(INVALID_ADDRESS_ERROR)
+        return False
 
-    t_properties = args[0]
+    t_properties = args[1]
     if len(t_properties) == b'\x00':
         Notify('missing properties data string')
         return False
 
-    t_uri = args[1]
+    t_uri = args[2]
 
-    # if nft contract owner passed a third argument,
-    # check if it is a user/contract address, if so set t_owner
-    # to the specified address
-    t_owner = b''
-    if len(args) > 2:
-        if len(args[2]) == 20:
-            t_owner = args[2]
-
-    # if nft contract owner didn't pass an address, transfer the
-    # newly minted token to the default contract.
-    # If nft contract owner did pass an address and it is a
-    # smart contract, transfer the newly minted token to the
-    # passed contract
-    this_contract = GetExecutingScriptHash()
-    if len(t_owner) != 20:
-        t_owner = Get(ctx, 'postMintContract')
+    if GetContract(t_owner):
         contract_args = [t_owner, t_id]
-        if len(args) == 3:  # append optional extra arg
-            contract_args.append(args[2])
+        if len(args) == 4:  # append optional extra arg
+            contract_args.append(args[3])
 
-        success = transfer_to_smart_contract(ctx, this_contract, contract_args, True)
+        success = transfer_to_smart_contract(ctx, GetExecutingScriptHash(), contract_args, True)
         if success is False:
             return False
-    elif len(t_owner) == 20:
-        if GetContract(t_owner):
-            contract_args = [t_owner, t_id]
-            if len(args) == 4:  # append optional extra arg
-                contract_args.append(args[3])
-
-            success = transfer_to_smart_contract(ctx, this_contract, contract_args, True)
-            if success is False:
-                return False
 
     Put(ctx, t_id, t_owner)  # update token's owner
     Put(ctx, concat('properties/', t_id), t_properties)
@@ -490,8 +451,7 @@ def do_modify_uri(ctx, t_id, t_uri):
     :return: URI modification success
     :rtype: bool
     """
-    exists = Get(ctx, t_id)
-    if len(exists) != 20:
+    if len(Get(ctx, t_id)) != 20:
         Notify(TOKEN_DNE_ERROR)
         return False
 
@@ -662,8 +622,7 @@ def do_transfer(ctx, caller, args):
         # If True, invoke the transfer_to_smart_contract
         # method, if transfer_to_smart_contract() returns False,
         # then reject the transfer
-        contract = GetContract(t_to)
-        if contract:
+        if GetContract(t_to):
             success = transfer_to_smart_contract(ctx, t_owner, args, False)
             if success is False:
                 return False
@@ -743,8 +702,7 @@ def do_transfer_from(ctx, args):
         # If True, invoke the transfer_to_smart_contract method.
         # if transfer_to_smart_contract() returns False, then
         # reject the transfer
-        contract = GetContract(t_to)
-        if contract:
+        if GetContract(t_to):
             args.remove(0)
             success = transfer_to_smart_contract(ctx, t_from, args, False)
             if success is False:

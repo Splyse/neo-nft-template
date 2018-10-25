@@ -37,9 +37,9 @@ In the method definitions below, we provide both the definitions of the function
 * Remarks: <code>balanceOf()</code> returns current total tokens owned by <code>owner</code>.
 
 ====mintToken====
-* Syntax: <code>mintToken(properties, URI, owner, extra_arg)</code>
+* Syntax: <code>mintToken(owner, properties, URI, extra_arg)</code>
 * Return: <code>Boolean</code>
-* Remarks: <code>mintToken()</code> creates a new non-fungible token. <code>owner</code> and <code>extra_arg</code> are both optional parameters. This fails and returns <code>False</code> if the user is not the contract owner, returns <code>True</code> otherwise. Token will be sent to <code>owner</code> upon creation if passed. An <code>extra_arg</code> can be passed in if <code>owner</code> is a smart contract.
+* Remarks: <code>mintToken()</code> creates a new non-fungible token. This fails and returns <code>False</code> if the user is not the contract owner, returns <code>True</code> otherwise. The token will be sent to <code>owner</code> upon creation. <code>extra_arg</code> is an optional extra argument that can be passed in if <code>owner</code> is a smart contract.
 
 ====modifyURI====
 * Syntax: <code>modifyURI(token_id, URI)</code>
@@ -55,11 +55,6 @@ In the method definitions below, we provide both the definitions of the function
 * Syntax: <code>ownerOf(token_id)</code>
 * Return: <code>ByteArray</code>
 * Remarks: <code>ownerOf()</code> returns the owner of token with id <code>token_id</code>.
-
-====postMintContract====
-* Syntax: <code>postMintContract()</code>
-* Return: <code>ByteArray</code>
-* Remarks: <code>postMintContract()</code> returns the contract address that minted tokens get sent to by default.
 
 ====properties====
 * Syntax: <code>properties(token_id)</code>

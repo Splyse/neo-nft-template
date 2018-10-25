@@ -13,11 +13,10 @@ The operations of the NFT template contract are:
   * **allowance**(token_id): returns approved third-party spender of a token
   * **approve**(receiver, token_id, revoke): approve third party to spend a token
   * **balanceOf**(owner): returns owner's current total tokens owned
-  * **mintToken**(properties, URI, owner, extra_arg): create a new NFT token
+  * **mintToken**(owner, properties, URI, extra_arg): create a new NFT token
   * **modifyURI**(token_id, URI): modify a token's URI
   * **name**(): returns name of token
   * **ownerOf**(token_id): returns owner of a token
-  * **postMintContract**(): returns the contract that a freshly minted token gets sent to by default
   * **properties**(token_id): returns a token's read-only data
   * **supportedStandards**(): returns a list of supported standards {"NEP-10"}
   * **symbol**(): returns token symbol
