@@ -9,7 +9,7 @@
 
 ==Abstract==
 
-The NEP-10 NFT-1 proposal defines a standard non-fungible token system for the NEO Smart Economy.
+The NEP-11 NFT-1 proposal defines a standard non-fungible token system for the NEO Smart Economy.
 
 ==Motivation==
 
