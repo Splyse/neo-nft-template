@@ -10,19 +10,21 @@ The NFT proposal standard for the Neo Smart Economy is currently in development.
 ### Smart Contract Operations
 The operations of the NFT template contract are:  
 
-  * **allowance**(tokenid): returns approved third-party spender of a token
-  * **approve**(receiver, tokenid, revoke): approve third party to spend a token
+  * **allowance**(token_id): returns approved third-party spender of a token
+  * **approve**(receiver, token_id, revoke): approve third party to spend a token
   * **balanceOf**(owner): returns owner's current total tokens owned
   * **mintToken**(properties, URI, owner, extra_arg): create a new NFT token
-  * **modifyURI**(tokenid, URI): modify a token's URI
+  * **modifyURI**(token_id, URI): modify a token's URI
   * **name**(): returns name of token
-  * **ownerOf**(tokenid): returns owner of a token
+  * **ownerOf**(token_id): returns owner of a token
   * **postMintContract**(): returns the contract that a freshly minted token gets sent to by default
-  * **properties**(tokenid): returns a token's read-only data
+  * **properties**(token_id): returns a token's read-only data
   * **supportedStandards**(): returns a list of supported standards {"NEP-10"}
   * **symbol**(): returns token symbol
-  * **tokensOfOwner**(owner, startindex): returns a list that contains less than or equal to ten of the tokens owned by the specified address starting at the specified index.
+  * **tokenData**(token_id): returns a dictionary where token, property, and uri keys map to their corresponding token's data
+  * **tokensDataOfOwner**(owner, start_index): returns a dictionary that contains less than or equal to five of the tokens (where token, properties, and uri keys map to their corresponding data for each token id) owned by the specified address starting at the `start_index`.
+  * **tokensOfOwner**(owner, start_index): returns a list that contains less than or equal to ten of the tokens owned by the specified address starting at the specified index.
   * **totalSupply**(): Returns the total token supply deployed in the system
-  * **transfer**(from, to, tokenid): transfers a token
-  * **transferFrom**(from, to, tokenid): transfers a token by authorized spender
-  * **uri**(tokenid): returns a token's URI
+  * **transfer**(from, to, token_id, extra_arg): transfers a token
+  * **transferFrom**(from, to, token_id, extra_arg): transfers a token by authorized spender
+  * **uri**(token_id): returns a token's URI
