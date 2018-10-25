@@ -11,12 +11,12 @@ Based on NEP5 template by Tom Saunders
 Example test using neo-local:
 neo> build /smart-contracts/nft_template.py test 0710 05 True True False name []
 
-Compile and deploy with neo-python:
-neo> build nft_template.py
-neo> import contract nft_template.avm 0710 05 True True False
+Compile and import with neo-python using neo-local:
+neo> build /smart-contracts/nft_template.py
+neo> import contract /smart-contracts/nft_template.avm 0710 05 True True False
 
 Example invocation
-neo> testinvoke {this_contract_hash} tokensOfOwner [{your_wallet_address}, 0]
+neo> testinvoke {this_contract_hash} tokensOfOwner [{your_wallet_address}, 1]
 
 # Note: I haven't found any documentation on best practice for when
 one should use Runtime.Log vs Runtime.Notify, so I am using Log
@@ -97,8 +97,8 @@ def Main(operation, args):
     - totalSupply(): Returns the total token supply deployed in the
         system.
     - transfer(to, token_id, extra_arg): transfers a token
-    - transferFrom(from, to, token_id, extra_arg): allows a third party to
-        execute an approved transfer
+    - transferFrom(from, to, token_id, extra_arg): allows a third party
+        to execute an approved transfer
     - uri(token_id): Returns a distinct Uniform Resource Identifier
         (URI) for a given asset.
         The URI data of a token supplies a reference to get more
@@ -115,7 +115,7 @@ def Main(operation, args):
         - setName(name): sets the name of the token
         - setSymbol(symbol): sets the token's symbol
         - setSupportedStandards(supported_standards): sets the
-            supported standards, 'NEP-10' must be the first element
+            supported standards, 'NEP-10' is always the first element
             in the array
     """
     # The trigger determines whether this smart contract is being run
@@ -305,11 +305,11 @@ def Main(operation, args):
 
             elif operation == 'setSupportedStandards':
                 if len(args) >= 1:
-                    if args[0] == 'NEP-10':
-                        return do_set_config(ctx, 'supportedStandards', Serialize(args))
+                    supported_standards = ['NEP-10']
+                    for arg in args:
+                        supported_standards.append(arg)
 
-                    Notify('NEP-10 must be the first arg')
-                    return False
+                    return do_set_config(ctx, 'supportedStandards', Serialize(supported_standards))
 
                 Notify(ARG_ERROR)
                 return False
