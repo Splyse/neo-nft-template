@@ -22,7 +22,7 @@ The operations of the NFT template contract are:
   * **symbol**(): returns token symbol
   * **tokenData**(token_id): returns a dictionary where token, property, and uri keys map to their corresponding token's data
   * **tokensDataOfOwner**(owner, start_index): returns a dictionary that contains less than or equal to five of the tokens (where token, properties, and uri keys map to their corresponding data for each token id) owned by the specified address starting at the `start_index`.
-  * **tokensOfOwner**(owner, start_index): returns a list that contains less than or equal to ten of the tokens owned by the specified address starting at the specified index.
+  * **tokensOfOwner**(owner, start_index): returns a dictionary that contains less than or equal to ten of the tokens owned by the specified address starting at the `start_index`.
   * **totalSupply**(): Returns the total token supply deployed in the system
   * **transfer**(from, to, token_id, extra_arg): transfers a token
   * **transferFrom**(from, to, token_id, extra_arg): transfers a token by authorized spender

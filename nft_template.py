@@ -91,7 +91,7 @@ def Main(operation, args):
         token, properties, and uri keys map to their corresponding data
         for each token id) owned by the specified address starting at
         the `starting_index`.
-    - tokensOfOwner(owner, starting_index): returns a list that
+    - tokensOfOwner(owner, starting_index): returns a dictionary that
         contains less than or equal to ten of the tokens owned by
         the specified address starting at the `starting_index`.
     - totalSupply(): Returns the total token supply deployed in the
@@ -487,8 +487,7 @@ def do_tokens_data_of_owner(ctx, t_owner, start_index):
     # index.
     # if statement explained: once a key has been found matching
     # my search key (or of greater value),
-    # add the token id to the dictionary along with its data,
-    # increment the counter,
+    # update the dictionary, increment the counter,
     # and disregard trying to find a matching key thereafter.
     # (once a key has been found matching my search key
     # (or greater), just get everything afterward while count < 5)
@@ -517,7 +516,7 @@ def do_tokens_data_of_owner(ctx, t_owner, start_index):
 def do_tokens_of_owner(ctx, t_owner, start_index):
     """This method returns ten of the owner's tokens starting at the
     given index. The index is used for paginating through the results.
-    Pagination is needed for the situation where the owner's list of
+    Pagination is needed for the situation where the owner's dict of
     tokens could be quite large.
 
     For example, the specified owner could have 100,000 tokens out
@@ -532,14 +531,14 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
     The results would look something like:
         [{'type': 'ByteArray',
         'value':
-        '800a00010100010200010300010400010500010600010700010800010900010a'}]
+        '82060007746f6b656e2f010001010007746f6b656e2f020001020007746f6b656e2f030001030007746f6b656e2f040001040007746f6b656e2f050001050007746f6b656e2f06000106''}]
 
     :param StorageContext ctx: current store context
     :param byte[] t_owner: token owner
     :param bytes start_index: the index to start searching through the
         owner's tokens
-    :return: list of tokens
-    :rtype: bool or list
+    :return: dict of tokens
+    :rtype: bool or dict
     """
     if len(t_owner) != 20:
         Notify(INVALID_ADDRESS_ERROR)
@@ -550,24 +549,24 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
 
     start_key = concat(t_owner, start_index)
     count = 0
-    token_list = []
+    token_dict = {}
     token_iter = Find(ctx, t_owner)
     # while loop explained: keep looping through the owner's list
     # of tokens until 10 have been found beginning at the starting
     # index.
     # if statement explained: once a key has been found matching
     # my search key (or of greater value),
-    # append the token id to the list, increment the counter,
+    # update the dictionary, increment the counter,
     # and disregard trying to find a matching key thereafter.
     # (once a key has been found matching my search key
     # (or greater), just get everything afterward while count < 10)
     while token_iter.next() and (count < 10):
         if (token_iter.Key >= start_key) or (count > 0):
-            token_list.append(token_iter.Value)
+            token_dict[concat('token/', token_iter.Value)] = token_iter.Value
             count += 1
 
-    if len(token_list) >= 1:
-        return token_list
+    if len(token_dict) >= 1:
+        return token_dict
 
     Notify(TOKEN_DNE_ERROR)
     return False

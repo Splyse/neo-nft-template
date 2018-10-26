@@ -83,7 +83,7 @@ In the method definitions below, we provide both the definitions of the function
 
 ====tokensOfOwner====
 * Syntax: <code>tokensOfOwner(owner, start_index)</code>
-* Return: <code>Array[Integer]</code>
+* Return: <code>Dict</code>
 * Remarks: <code>tokensOfOwner()</code> returns, at most, ten of the tokens owned by <code>owner</code> beginning at index <code>start_index</code>.
 
 ====totalSupply====
