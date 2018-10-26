@@ -494,11 +494,12 @@ def do_tokens_data_of_owner(ctx, t_owner, start_index):
     while token_iter.next() and (count < 5):
         if (token_iter.Key >= start_key) or (count > 0):
             token_data = do_token_data(ctx, token_iter.Value)
+            # simplify this if/when neo-boa implements something
+            # like token_dict.update(token_data)
             # keys
             token_key = concat('token/', token_iter.Value)
             prop_key = concat('properties/', token_iter.Value)
             uri_key = concat('uri/', token_iter.Value)
-
             # update dictionary
             token_dict[token_key] = token_data[token_key]
             token_dict[prop_key] = token_data[prop_key]
