@@ -24,7 +24,7 @@ In the method definitions below, we provide both the definitions of the function
 ====allowance====
 * Syntax: <code>allowance(token_id)</code>
 * Return: <code>ByteArray</code>
-* Remarks: <code>allowance(token_id)</code> returns the approved third party spender of <code>token_id</code>.
+* Remarks: <code>allowance(token_id)</code> returns the approved spend of <code>token_id</code>.
 
 ====approve====
 * Syntax: <code>approve(receiver, token_id, revoke)</code>
@@ -74,12 +74,12 @@ In the method definitions below, we provide both the definitions of the function
 ====tokenData====
 * Syntax: <code>tokenData(token_id)</code>
 * Return: <code>Dict</code>
-* Remarks: <code>tokenData()</code> returns a dictionary where `token/{token_id}`, `properties/{token_id}`, and `uri/{token_id}` are mapped to a token's id, properties, and uri, respectively.
+* Remarks: <code>tokenData()</code> returns a dictionary where <code>token/{token_id}</code>, <code>properties/{token_id}</code>, and <code>uri/{token_id}</code> are mapped to a token's id, properties, and uri, respectively.
 
 ====tokensDataOfOwner====
 * Syntax: <code>tokensDataOfOwner(owner, start_index)</code>
 * Return: <code>Dict</code>
-* Remarks: <code>tokensDataOfOwner()</code> returns a dictionary where `token/{token_id}`, `properties/{token_id}`, and `uri/{token_id}` are mapped to, at most five, token's corresponding values (id, properties, and uri) where each token is owned by <code>owner</code> beginning at index <code>start_index</code>.
+* Remarks: <code>tokensDataOfOwner()</code> returns a dictionary where <code>token/{token_id}</code>, <code>properties/{token_id}</code>, and <code>uri/{token_id}</code> are mapped to, at most five, token's corresponding values (id, properties, and uri) where each token is owned by <code>owner</code> beginning at index <code>start_index</code>.
 
 ====tokensOfOwner====
 * Syntax: <code>tokensOfOwner(owner, start_index)</code>
@@ -105,6 +105,17 @@ In the method definitions below, we provide both the definitions of the function
 * Syntax: <code>uri(token_id)</code>
 * Return: <code>String</code>
 * Remarks: <code>uri()</code> returns the URI of token with id <code>token_id</code>. The URI data of a token supplies a reference to get more information about a specific token or its data.
+
+===Events===
+
+====approve====
+SHOULD trigger when a token is approved for transfer via <code>transferFrom</code>.
+
+====mint====
+MUST trigger when a token is minted.
+
+====transfer====
+MUST trigger when a token is transferred. 
 
 ==Rationale==
 
