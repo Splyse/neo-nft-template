@@ -2,18 +2,18 @@
 
 Authors: Joe Stewart, Jonathan Winter
 Email: hal0x2328@splyse.tech, jonathan@splyse.tech
-Version: 1.0
-Date: 02 October 2018
+Version: 2.0
+Date: 15 March 2019
 License: MIT
 
 Based on NEP5 template by Tom Saunders
 
 Example test using neo-local:
-neo> build /smart-contracts/nft_template.py test 0710 05 True True False name []
+neo> sc build_run /smart-contracts/nft_template.py test 0710 05 True False False name []
 
 Compile and import with neo-python using neo-local:
-neo> build /smart-contracts/nft_template.py
-neo> import contract /smart-contracts/nft_template.avm 0710 05 True True False
+neo> sc build /smart-contracts/nft_template.py
+neo> sc deploy /smart-contracts/nft_template.avm 0710 05 True False False
 
 Example invocation
 neo> testinvoke {this_contract_hash} tokensOfOwner [{your_wallet_address}, 1]
@@ -36,11 +36,11 @@ from boa.interop.System.ExecutionEngine import (GetCallingScriptHash,
 # This is the script hash of the address for the owner of the contract
 # This can be found in ``neo-python`` with the wallet open,
 # use ``wallet`` command
-# TOKEN_CONTRACT_OWNER = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-# TOKEN_CONTRACT_OWNER = b'\x0f&\x1f\xe5\xc5,k\x01\xa4{\xbd\x02\xbdM\xd3?\xf1\x88\xc9\xde'
-TOKEN_CONTRACT_OWNER = b'#\xba\'\x03\xc52c\xe8\xd6\xe5"\xdc2 39\xdc\xd8\xee\xe9'
+TOKEN_CONTRACT_OWNER = b'\x1c\xc9\xc0\\\xef\xff\xe6\xcd\xd7\xb1\x82\x81j\x91R\xec!\x8d.\xc0'
+DAPP_ADMIN = b'\x08t/\\P5\xac-\x0b\x1c\xb4\x94tIyBu\x7f1*' # can set RW properties
 TOKEN_NAME = 'Non-Fungible Token Template'
 TOKEN_SYMBOL = 'NFT'
+TOKEN_DECIMALS = 0
 TOKEN_CIRC_KEY = b'in_circulation'
 
 # Smart Contract Event Notifications
@@ -50,6 +50,7 @@ OnTransfer = RegisterAction('transfer', 'addr_from', 'addr_to', 'amount')
 OnNFTTransfer = RegisterAction('NFTtransfer', 'addr_from', 'addr_to', 'tokenid')
 OnMint = RegisterAction('mint', 'addr_to', 'amount')
 OnNFTMint = RegisterAction('NFTmint', 'addr_to', 'tokenid')
+OnError = RegisterAction('error', 'message')
 
 # common errors
 ARG_ERROR = 'incorrect arg length'
@@ -73,27 +74,24 @@ def Main(operation, args):
         to spend a token
     - balanceOf(owner): returns owner's current total tokens owned
     - name(): returns name of token
+    - decimals(): returns token decimal precision
     - ownerOf(token_id): returns the owner of the specified token.
     - properties(token_id): returns a token's read-only data
+    - rwProperties(token_id): returns a token's read/write data
     - supportedStandards(): returns a list of supported standards
         {"NEP-10"}
     - symbol(): returns token symbol
-    - tokenData(token_id): returns a dictionary where token, property,
+    - token(token_id): returns a dictionary where token, property,
         and uri keys map to the corresponding data for the given
         `token_id`
-    - tokensDataOfOwner(owner, starting_index): returns a dictionary
-        that contains less than or equal to five of the tokens (where
-        token, properties, and uri keys map to their corresponding data
-        for each token id) owned by the specified address starting at
-        the `starting_index`.
     - tokensOfOwner(owner, starting_index): returns a dictionary that
         contains less than or equal to ten of the tokens owned by
         the specified address starting at the `starting_index`.
     - totalSupply(): Returns the total token supply deployed in the
         system.
     - transfer(to, token_id, extra_arg): transfers a token
-    - transferFrom(from, to, token_id, extra_arg): allows a third party
-        to execute an approved transfer
+    - transferFrom(spender, from, to, token_id): allows a third party
+        to execute a pre-approved transfer
     - uri(token_id): Returns a distinct Uniform Resource Identifier
         (URI) for a given asset.
         The URI data of a token supplies a reference to get more
@@ -127,6 +125,8 @@ def Main(operation, args):
 
     elif trigger == Application():
 
+        # Need to get this at the top level
+        caller = GetCallingScriptHash()
         ctx = GetContext()
 
         if operation == 'name':
@@ -153,228 +153,188 @@ def Main(operation, args):
         elif operation == 'totalSupply':
             return Get(ctx, TOKEN_CIRC_KEY)
 
-        if operation == 'allowance':
-            if len(args) == 1:
-                return Get(ctx, concat('approved/', args[0]))
-
-            Log(ARG_ERROR)
-            return False
-
-        elif operation == 'approve':
-            if len(args) == 3:
-                # GetCallingScriptHash() can't be done within the
-                # function because the calling script hash changes
-                # depending on where the function is called
-                return do_approve(ctx, GetCallingScriptHash(), args[0], args[1], args[2])
-
-            Log(ARG_ERROR)
-            return False
+        elif operation == 'allowance':
+            assert len(args) == 1, ARG_ERROR
+            ownership = safe_deserialize(Get(ctx, concat('ownership/', args[0])))
+            assert ownership, TOKEN_DNE_ERROR
+            # don't fault here in case a calling contract is just checking allowance value
+            if not has_key(ownership, 'approved'): return False
+            if len(ownership['approved']) != 40: return False
+            return ownership['approved']
 
         elif operation == 'balanceOf':
-            if len(args) == 1:
-                if len(args[0]) == 20:
-                    return Get(ctx, args[0])
-
-                Log(INVALID_ADDRESS_ERROR)
-                return False
-
-            Log(ARG_ERROR)
-            return False
+            assert len(args) == 1, ARG_ERROR
+            assert len(args[0]) == 20, INVALID_ADDRESS_ERROR
+            token_iter = Find(ctx, args[0])
+            count = 0
+            while token_iter.next():
+                count += 1
+            return count
 
         elif operation == 'ownerOf':
-            if len(args) == 1:
-                t_owner = Get(ctx, args[0])
-                if len(t_owner) == 20:
-                    return t_owner
-
-                Log(TOKEN_DNE_ERROR)
-                return False
-
-            Log(ARG_ERROR)
-            return False
+            assert len(args) == 1, ARG_ERROR
+            ownership = safe_deserialize(Get(ctx, concat('ownership/', args[0])))
+            assert ownership, TOKEN_DNE_ERROR
+            assert has_key(ownership, 'owner'), TOKEN_DNE_ERROR
+            assert len(ownership['owner']) == 20, TOKEN_DNE_ERROR
+            return ownership['owner']
 
         elif operation == 'properties':
-            if len(args) == 1:
-                token_properties = Get(ctx, concat('properties/', args[0]))
-                if token_properties:
-                    return token_properties
+            assert len(args) == 1, ARG_ERROR
+            return get_properties(ctx, args[0])
 
-                Log(TOKEN_DNE_ERROR)
-                return False
+        elif operation == 'rwProperties':
+            assert len(args) == 1, ARG_ERROR
+            return get_rw_properties(ctx, args[0])
 
-            Log(ARG_ERROR)
-            return False
-
-        elif operation == 'tokenData':
-            if len(args) == 1:
-                # check to make sure the token exists
-                if len(Get(ctx, args[0])) == 20:
-                    return Serialize(do_token_data(ctx, args[0]))
-
-                Log(TOKEN_DNE_ERROR)
-                return False
-
-            Log(ARG_ERROR)
-            return False
-
-        elif operation == 'tokensDataOfOwner':
-            if len(args) == 2:
-                tokens_data_of_owner = do_tokens_data_of_owner(ctx, args[0], args[1])
-                if tokens_data_of_owner:
-                    return Serialize(tokens_data_of_owner)
-
-                return False
-
-            Log(ARG_ERROR)
-            return False
+        elif operation == 'token':
+            assert len(args) == 1, ARG_ERROR
+            token = Get(ctx, concat('token/', args[0]))
+            assert token, TOKEN_DNE_ERROR
+            return token
 
         elif operation == 'tokensOfOwner':
-            if len(args) == 2:
-                tokens_of_owner = do_tokens_of_owner(ctx, args[0], args[1])
-                if tokens_of_owner:
-                    return Serialize(tokens_of_owner)
-
-                return False
-
-            Log(ARG_ERROR)
-            return False
-
-        elif operation == 'transfer':
-            if len(args) >= 2:
-                # GetCallingScriptHash() can't be done within the
-                # function because the calling script hash changes
-                # depending on where the function is called
-                return do_transfer(ctx, GetCallingScriptHash(), args)
-
-            Log(ARG_ERROR)
-            return False
-
-        elif operation == 'transferFrom':
-            if len(args) >= 3:
-                return do_transfer_from(ctx, args)
-
-            Log(ARG_ERROR)
-            return False
+            assert len(args) == 2, ARG_ERROR
+            tokens_of_owner = do_tokens_of_owner(ctx, args[0], args[1])
+            assert tokens_of_owner, 'address has no tokens'
+            return Serialize(tokens_of_owner)
 
         elif operation == 'uri':
-            if len(args) == 1:
-                token_uri = Get(ctx, concat('uri/', args[0]))
-                if token_uri:
-                    return token_uri
+            assert len(args) == 1, ARG_ERROR
+            token = safe_deserialize(Get(ctx, concat('token/', args[0])))
+            assert token, TOKEN_DNE_ERROR
+            assert has_key(token, 'uri'), TOKEN_DNE_ERROR
+            return token['uri']
 
-                Log(TOKEN_DNE_ERROR)
-                return False
+        elif operation == 'decimals':
+            return TOKEN_DECIMALS
 
-            Log(ARG_ERROR)
-            return False
+        #
+        # User RW operations
+        #
+
+        if operation == 'approve':
+            # args: from, spender, id, revoke
+            # (NFT needs a fourth argument to revoke approval)
+            assert len(args) > 2, ARG_ERROR
+            assert args[2], TOKEN_DNE_ERROR 
+            return do_approve(ctx, caller, args)
+
+        elif operation == 'transfer':
+            assert len(args) > 1, ARG_ERROR
+            return do_transfer(ctx, caller, args)
+
+        elif operation == 'transferFrom':
+
+            assert len(args) > 2, ARG_ERROR
+            if len(args) == 3:
+                # Nash-style (from, to, amount/id) transferFrom that can 
+                # be invoked only by whitelisted DEX to initiate a 
+                # pre-approved transfer
+
+                return nash_do_transfer_from(ctx, caller, args)
+            else:
+                # Moonlight-style (spender, from, to, amount/id)
+                # transfer where an authenticated spender/originator is 
+                # the only one who can initiate a transfer but can send 
+                # to an arbitrary third party (or themselves)
+
+                return do_transfer_from(ctx, caller, args)
+
+        #
+        # dApp operations
+        #
+        if operation == 'setRWProperties':
+            # args: token id, rwdata
+            assert CheckWitness(DAPP_ADMIN), PERMISSION_ERROR
+            assert len(args) == 2, ARG_ERROR
+            return set_rw_properties(ctx, args[0], args[1])
+
 
         # Administrative operations
         if CheckWitness(TOKEN_CONTRACT_OWNER):
             if operation == 'mintToken':
-                if len(args) >= 3:
-                    return do_mint_token(ctx, args)
-
-                Log(ARG_ERROR)
-                return False
+                assert len(args) > 3, ARG_ERROR
+                return do_mint_token(ctx, args)
 
             elif operation == 'modifyURI':
-                if len(args) == 2:
-                    return do_modify_uri(ctx, args[0], args[1])
-
-                Log(ARG_ERROR)
-                return False
+                assert len(args) == 2, ARG_ERROR
+                return do_modify_uri(ctx, args) 
 
             elif operation == 'setName':
-                if len(args) == 1:
-                    return do_set_config(ctx, 'name', args[0])
-
-                Log(ARG_ERROR)
-                return False
+                assert len(args) == 1, ARG_ERROR
+                return do_set_config(ctx, 'name', args[0])
 
             elif operation == 'setSymbol':
-                if len(args) == 1:
-                    return do_set_config(ctx, 'symbol', args[0])
-
-                Log(ARG_ERROR)
-                return False
+                assert len(args) == 1, ARG_ERROR
+                return do_set_config(ctx, 'symbol', args[0])
 
             elif operation == 'setSupportedStandards':
-                if len(args) >= 1:
-                    supported_standards = ['NEP-10']
-                    for arg in args:
-                        supported_standards.append(arg)
+                assert len(args) >= 1, ARG_ERROR
+                supported_standards = ['NEP-10']
+                for arg in args:
+                    supported_standards.append(arg)
+                return do_set_config(ctx, 'supportedStandards', Serialize(supported_standards))
 
-                    return do_set_config(ctx, 'supportedStandards', Serialize(supported_standards))
-
-                Log(ARG_ERROR)
-                return False
-
-        else:
-            Log(PERMISSION_ERROR)
-            return False
-
-        Log('unknown operation')
-
+        AssertionError('unknown operation')
     return False
 
 
-def do_approve(ctx, caller, t_receiver, t_id, revoke):
-    """Approve a token to eventually be transferred to the t_receiver
+def do_approve(ctx, Caller, args):
+    """Approve a token to be transferred to a third party by an approved spender
 
     :param StorageContext ctx: current store context
-    :param byte[] caller: calling script hash
-    :param byte[] t_receiver: address of the future token owner
-    :param bytes t_id: int: token id
-    :param bytes revoke: set to 1 to revoke previous approval
+    :param bytearray t_owner: current owner of the token
+    :param bytearray t_spender: spender to approve
+    :param int t_id: int: token id
+    :param bool revoke: set to True to revoke previous approval
     :return: approval success
     :rtype: bool
     """
-    if len(t_receiver) != 20:
-        Log(INVALID_ADDRESS_ERROR)
-        return False
+    t_owner = args[0]
+    t_spender = args[1]
+    t_id = args[2]
+    revoke = False
 
-    if len(revoke) == b'\x00':
-        revoke = b'\x00'
+    if len(args) > 3:
+        revoke = args[3] 
+    
+    if Caller != GetEntryScriptHash() and not is_whitelisted_dex(ctx, Caller):
+        # non-whitelisted contracts can only approve their own funds for transfer,
+        # even if they have the signature of the owner on the invocation 
+        t_owner = Caller
 
-    t_owner = Get(ctx, t_id)
-    if len(t_owner) != 20:
-        Log(TOKEN_DNE_ERROR)
-        return False
+    assert len(t_owner) == 20, INVALID_ADDRESS_ERROR
+    assert len(t_spender) == 20, INVALID_ADDRESS_ERROR
+    assert t_id, TOKEN_DNE_ERROR
 
-    if t_owner == t_receiver:
-        Log('approved spend to self')
+    ownership_key = concat('ownership/', t_id)
+    ownership = safe_deserialize(Get(ctx, ownership_key))
+
+    assert ownership, TOKEN_DNE_ERROR
+    assert has_key(ownership, 'owner'), TOKEN_DNE_ERROR
+    assert t_owner == ownership['owner'], PERMISSION_ERROR
+    assert t_owner != t_spender, 'same owner and spender'
+    assert authenticate(t_owner, Caller), PERMISSION_ERROR
+
+    # revoke previous approval if revoke is True
+    if revoke:
+        if has_key(ownership, 'approved'):
+            ownership.remove('approved')
+            Put(ctx, ownership_key, Serialize(ownership))
+
+        # log the revoking of previous approvals
+        OnApprove(t_owner, t_spender, 0)
+        OnNFTApprove(t_owner, '', t_id)
         return True
 
-    is_token_owner = CheckWitness(t_owner)
-    if is_token_owner and GetEntryScriptHash() != caller:
-        Log('third party script is bouncing the signature to us')
-        return False
-    # if token owner is a smart contract and is the calling
-    # script hash, continue
-    elif GetContract(t_owner) and t_owner == caller:
-        is_token_owner = True
-
-    if is_token_owner:
-        approval_key = concat('approved/', t_id)
-        # revoke previous approval if revoke != 0
-        if revoke != b'\x00':
-            Delete(ctx, approval_key)
-            # log the revoking of previous approvals
-            OnApprove(t_owner, t_receiver, b'\x00')
-            OnNFTApprove(t_owner, '', t_id)
-            return True
-
-        # approve this transfer
-        Put(ctx, approval_key, concat(t_owner, t_receiver))
-
-        # Log this approval event
-        OnApprove(t_owner, t_receiver, 1)
-        OnNFTApprove(t_owner, t_receiver, t_id)
-        return True
-
-    Log(PERMISSION_ERROR)
-    return False
-
+    ownership['approved'] = concat(t_owner, t_spender)
+    # approve this transfer
+    Put(ctx, ownership_key, Serialize(ownership))
+    # Log this approval event
+    OnApprove(t_owner, t_spender, 1)
+    OnNFTApprove(t_owner, t_spender, t_id)
+    return True
 
 def do_mint_token(ctx, args):
     """Mints a new NFT token; stores it's properties, URI info, and
@@ -382,171 +342,103 @@ def do_mint_token(ctx, args):
 
     :param StorageContext ctx: current store context
     :param list args:
-        0: byte[] t_owner: token owner
-        1: byte[] t_properties: token's read only data
-        2: bytes t_uri: token's uri
-        3: extra_arg (optional): extra arg to be passed to a smart
-            contract
+        0: bytearray t_owner: token owner
+        1: int t_id: token id (must not already exist)
+        2: str t_properties: token's read only data
+        3: str t_uri: token's uri
+        4: str t_rw_properties: token's read/write data (optional)
     :return: mint success
     :rtype: bool
     """
-    t_id = Get(ctx, TOKEN_CIRC_KEY)
-    # the int 0 is represented as b'' in neo-boa, this caused bugs
-    # throughout my code
-    # This is the reason why token id's start at 1 instead
-    t_id += 1
 
-    # this should never already exist
-    if len(Get(ctx, t_id)) == 20:
-        Log('token already exists')
-        return False
-    
-    t_owner = args[0]
-    if len(t_owner) != 20:
-        Log(INVALID_ADDRESS_ERROR)
-        return False
+    t_circ = Get(ctx, TOKEN_CIRC_KEY)
+    t_circ += 1
 
-    t_properties = args[1]
-    if len(t_properties) == b'\x00':
-        Log('missing properties data string')
-        return False
+    assert len(args[0]) == 20, INVALID_ADDRESS_ERROR
+    assert args[1], 'missing token id'
+    assert args[2], 'missing properties'
+    assert args[3], 'missing uri'
 
-    t_uri = args[2]
+    t_id = args[1]
+    token = safe_deserialize(Get(ctx, concat('token/', t_id)))
+    assert not token, 'token already exists'
 
-    if GetContract(t_owner):
-        contract_args = [t_owner, t_id]
-        if len(args) == 4:  # append optional extra arg
-            contract_args.append(args[3])
+    # basically a token 'object' containing the token's
+    # id, uri, and properties
+    token = {}
+    ownership = {}  # information about the token's owner
 
-        success = transfer_to_smart_contract(ctx, GetExecutingScriptHash(), contract_args, True)
-        if success is False:
-            return False
+    token['id'] = t_id
+    token['uri'] = args[3]
+    token['properties'] = args[2] # this can never change
 
-    Put(ctx, t_id, t_owner)  # update token's owner
-    Put(ctx, concat('properties/', t_id), t_properties)
-    Put(ctx, concat('uri/', t_id), t_uri)
-    add_token_to_owners_list(ctx, t_owner, t_id)
-    Put(ctx, TOKEN_CIRC_KEY, t_id)  # update total supply
+    if len(args) > 4:
+        token['rwproperties'] = args[4]
+    else:
+        token['rwproperties'] = ''
 
+    ownership['owner'] = args[0]
+
+    Put(ctx, concat('token/', t_id), Serialize(token))
+    # update token's owner
+    Put(ctx, concat('ownership/', t_id), Serialize(ownership))
+    res = add_token_to_owners_list(ctx, ownership['owner'], t_id)
+    Put(ctx, TOKEN_CIRC_KEY, t_circ)  # update total supply
     # Log this minting event
-    OnMint(t_owner, 1)
-    OnNFTMint(t_owner, t_id)
+    OnTransfer('', ownership['owner'], 1)
+    OnNFTTransfer('', ownership['owner'], t_id)
+    OnMint(ownership['owner'], 1)
+    OnNFTMint(ownership['owner'], t_id)
     return True
 
 
-def do_modify_uri(ctx, t_id, t_uri):
+def do_modify_uri(ctx, args):
     """Modifies token URI
 
     :param StorageContext ctx: current store context
-    :param bytes t_id: token id
-    :param bytes t_uri: token uri
+    :param int t_id: token id
+    :param str t_uri: token uri
     :return: URI modification success
     :rtype: bool
     """
-    if len(Get(ctx, t_id)) != 20:
-        Log(TOKEN_DNE_ERROR)
-        return False
 
-    Put(ctx, concat('uri/', t_id), t_uri)
-    Log('token uri has been updated')
+    t_id = args[0]
+    t_uri = args[1]
+
+    token_key = concat('token/', t_id)
+    token = safe_deserialize(Get(ctx, token_key))
+    assert token, TOKEN_DNE_ERROR
+
+    token['uri'] = t_uri
+    Put(ctx, token_key, Serialize(token))
     return True
 
 
-def do_tokens_data_of_owner(ctx, t_owner, start_index):
-    """This method returns five of the owner's token's id and
-    data starting at the given index.
-    See `do_tokens_of_owner` for more detailed information behind
-    rationale.
-
-    :param StorageContext ctx: current store context
-    :param byte[] t_owner: token owner
-    :param bytes start_index: the index to start searching through the
-        owner's tokens
-    :return: dictionary of id, properties, and uri keys mapped to their
-        corresponding token's data
-    :rtype: bool or dict
-    """
-    if len(t_owner) != 20:
-        Log(INVALID_ADDRESS_ERROR)
-        return False
-
-    if len(start_index) == b'\x00':
-        start_index = b'\x01'  # token id's cannot go below 1
-
-    start_key = concat(t_owner, start_index)
-    count = 0
-    token_dict = {}
-    token_iter = Find(ctx, t_owner)
-    # while loop explained: keep looping through the owner's list
-    # of tokens until 5 have been found beginning at the starting
-    # index.
-    # if statement explained: once a key has been found matching
-    # my search key (or of greater value),
-    # update the dictionary, increment the counter,
-    # and disregard trying to find a matching key thereafter.
-    # (once a key has been found matching my search key
-    # (or greater), just get everything afterward while count < 5)
-    while token_iter.next() and (count < 5):
-        if (token_iter.Key >= start_key) or (count > 0):
-            token_data = do_token_data(ctx, token_iter.Value)
-            # simplify this if/when neo-boa implements something
-            # like token_dict.update(token_data)
-            # keys
-            token_key = concat('token/', token_iter.Value)
-            prop_key = concat('properties/', token_iter.Value)
-            uri_key = concat('uri/', token_iter.Value)
-            # update dictionary
-            token_dict[token_key] = token_data[token_key]
-            token_dict[prop_key] = token_data[prop_key]
-            token_dict[uri_key] = token_data[uri_key]
-
-            count += 1
-
-    if len(token_dict) >= 1:
-        return token_dict
-
-    Log(TOKEN_DNE_ERROR)
-    return False
-
-
-def do_tokens_of_owner(ctx, t_owner, start_index):
+def do_tokens_of_owner(ctx, t_owner, start_id):
     """This method returns ten of the owner's tokens starting at the
     given index. The index is used for paginating through the results.
     Pagination is needed for the situation where the owner's dict of
     tokens could be quite large.
 
-    For example, the specified owner could have 100,000 tokens out
-    of 1,000,000 minted tokens.
-    In such a scenario, returning the full list of token id's would
-    be quite expensive and could possibly be too large to return anyway.
-    Hence, @hal0x2328 recognized the need to paginate the
-    data in such a scenario. So, if we know that this user has a
-    balanceOf() 100,000 tokens and we want to get their 10 most recent
-    tokens, then our call would be like so:
-    `testinvoke {my_hash} tokensOfOwner [{owner address string}, 999990]`
-    The results would look something like:
-        [{'type': 'ByteArray',
-        'value':
-        '82060007746f6b656e2f010001010007746f6b656e2f020001020007746f6b656e2f030001030007746f6b656e2f040001040007746f6b656e2f050001050007746f6b656e2f06000106''}]
-
     :param StorageContext ctx: current store context
-    :param byte[] t_owner: token owner
-    :param bytes start_index: the index to start searching through the
+    :param bytearray t_owner: token owner
+    :param int start_id: the id to start searching through the
         owner's tokens
-    :return: dict of tokens
+    :return: dictionary of id, properties, and uri keys mapped to their
+        corresponding token's data
     :rtype: bool or dict
     """
-    if len(t_owner) != 20:
-        Log(INVALID_ADDRESS_ERROR)
-        return False
 
-    if len(start_index) == b'\x00':
-        start_index = b'\x01'  # token id's cannot go below 1
+    assert len(t_owner) == 20, INVALID_ADDRESS_ERROR 
 
-    start_key = concat(t_owner, start_index)
+    if start_id == 0:
+        start_id = 1  # token id's cannot go below 1
+
+    start_key = concat(t_owner, start_id)
     count = 0
     token_dict = {}
     token_iter = Find(ctx, t_owner)
+
     # while loop explained: keep looping through the owner's list
     # of tokens until 10 have been found beginning at the starting
     # index.
@@ -556,173 +448,190 @@ def do_tokens_of_owner(ctx, t_owner, start_index):
     # and disregard trying to find a matching key thereafter.
     # (once a key has been found matching my search key
     # (or greater), just get everything afterward while count < 10)
+
     while token_iter.next() and (count < 10):
         if (token_iter.Key >= start_key) or (count > 0):
-            token_dict[concat('token/', token_iter.Value)] = token_iter.Value
-            count += 1
-
-    if len(token_dict) >= 1:
-        return token_dict
-
-    Log(TOKEN_DNE_ERROR)
-    return False
+            token_key = concat('token/', token_iter.Value)
+            token = safe_deserialize(Get(ctx, token_key))
+            if token:
+                token_dict[token_key] = token
+                count += 1
+    return token_dict
 
 
-def do_transfer(ctx, caller, args):
+def do_transfer(ctx, Caller, args):
     """Transfers a token at the specified id from the t_owner address
     to the t_to address
 
     :param StorageContext ctx: current store context
-    :param bytes caller: calling script hash
     :param list args:
-        0: byte[] t_to: transfer to address
-        1: bytes t_id: token id
-        2: extra_arg: optional argument that can be passed (for use
-            only with smart contracts)
+        0: bytearray t_to: transfer to address
+        1: int t_id: token id
     :return: transfer success
     :rtype: bool
     """
+    # we don't need the t_from because the token data stores the owner
+    t_from = ""
     t_to = args[0]
     t_id = args[1]
 
-    if len(t_to) != 20:
-        Log(INVALID_ADDRESS_ERROR)
-        return False
+    if len(args) == 3:  # use traditional from, to, id format if they want to send it
+        t_from = args[0]
+        t_to = args[1]
+        t_id = args[2]
 
-    t_owner = Get(ctx, t_id)
-    if len(t_owner) != 20:
-        Log(TOKEN_DNE_ERROR)
-        return False
+    if Caller != GetEntryScriptHash() and not is_whitelisted_dex(ctx, Caller):
+        # non-whitelisted contracts can only approve their own funds for transfer,
+        # even if they have the signature of the owner on the invocation 
+        t_from = Caller
+
+    assert len(t_to) == 20, INVALID_ADDRESS_ERROR 
+    ownership = safe_deserialize(Get(ctx, concat('ownership/', t_id)))
+
+    assert ownership, TOKEN_DNE_ERROR
+    assert has_key(ownership, 'owner'), TOKEN_DNE_ERROR
+    assert len(ownership['owner']) == 20, TOKEN_DNE_ERROR
+
+    t_owner = ownership['owner']
 
     if t_owner == t_to:
-        Log('transfer to self')
+        print('transfer to self')
         return True
 
-    # Verifies that the calling contract has verified the required
-    # script hashes of the transaction/block
-    is_token_owner = CheckWitness(t_owner)
-    if is_token_owner and GetEntryScriptHash() != caller:
-        Log('third party script is bouncing the signature to us')
-        return False
-    # if token owner is a smart contract and is the calling
-    # script hash, continue
-    elif GetContract(t_owner) and t_owner == caller:
-        is_token_owner = True
+    assert authenticate(t_owner, Caller), PERMISSION_ERROR
 
-    if is_token_owner:
-        # 1. Is t_to a smart contract?
-        # If True, invoke the transfer_to_smart_contract
-        # method, if transfer_to_smart_contract() returns False,
-        # then reject the transfer
-        if GetContract(t_to):
-            success = transfer_to_smart_contract(ctx, t_owner, args, False)
-            if success is False:
-                return False
-        else:
-            if len(args) > 2:
-                Log(ARG_ERROR)
-                return False
+    res = remove_token_from_owners_list(ctx, t_owner, t_id)
+    assert res, 'unable to remove token from owner list'
+   
+    ownership['owner'] = t_to  # update token's owner
+    # remove any existing approvals for this token
+    if has_key(ownership, 'approved'):
+        ownership.remove('approved')
 
-        res = remove_token_from_owners_list(ctx, t_owner, t_id)
-        if res is False:
-            Log('unable to transfer token')
-            return False
+    Put(ctx, concat('ownership/', t_id), Serialize(ownership))
+    res = add_token_to_owners_list(ctx, t_to, t_id)
 
-        Put(ctx, t_id, t_to)  # update token's owner
-        # remove any existing approvals for this token
-        Delete(ctx, concat('approved/', t_id))
-        add_token_to_owners_list(ctx, t_to, t_id)
+    # log this transfer event
+    OnTransfer(t_owner, t_to, 1)
+    OnNFTTransfer(t_owner, t_to, t_id)
+    return True
 
-        # log this transfer event
-        OnTransfer(t_owner, t_to, 1)
-        OnNFTTransfer(t_owner, t_to, t_id)
-        return True
-
-    Log(PERMISSION_ERROR)
-    return False
-
-
-def do_transfer_from(ctx, args):
+def do_transfer_from(ctx, Caller, args):
     """Transfers the approved token at the specified id from the
     t_from address to the t_to address
 
+    Only the approved spender OR a whitelisted DEX can invoke this function
+    and a whitelisted DEX will still need to pass the authentication of the spender
+
     :param StorageContext ctx: current store context
     :param list args:
-        0: byte[] t_from: transfer from address (token owner)
-        1: byte[] t_to: transfer to address (token receiver)
-        2: bytes t_id: token id
-        3: extra_arg: optional argument that can be passed (for use
-            only with smart contracts)
+        0: bytearray t_spender: approved spender address
+        1: bytearray t_from: transfer from address (token owner)
+        2: bytearray t_to: transfer to address (token receiver)
+        3: int t_id: token id
     :return: transferFrom success
     :rtype: bool
     """
+
+    t_spender = args[0]
+    t_from = args[1]
+    t_to = args[2]
+    t_id = args[3]
+
+    if Caller != GetEntryScriptHash() and not is_whitelisted_dex(ctx, Caller):
+        # non-whitelisted contracts can only approve their own funds for transfer,
+        # even if they have the signature of the owner on the invocation 
+        t_from = Caller
+
+    assert len(t_spender) == 20, INVALID_ADDRESS_ERROR 
+    assert len(t_from) == 20, INVALID_ADDRESS_ERROR 
+    assert len(t_to) == 20, INVALID_ADDRESS_ERROR 
+    assert authenticate(t_spender, Caller), PERMISSION_ERROR
+
+    if t_from == t_to:
+        print('transfer to self')
+        return True
+
+    ownership = safe_deserialize(Get(ctx, concat('ownership/', t_id)))
+    assert ownership, TOKEN_DNE_ERROR
+    assert has_key(ownership, 'owner'), TOKEN_DNE_ERROR
+    assert has_key(ownership, 'approved'), 'no approval exists for this token'
+    assert len(ownership['owner']) == 20, TOKEN_DNE_ERROR
+
+    t_owner = ownership['owner']
+
+    assert t_from == t_owner, 'from address is not the owner of this token'
+    assert len(ownership['approved']) == 40, 'malformed approval key for this token'
+
+    # Finally check to see if the owner approved this spender
+    assert ownership['approved'] == concat(t_from, t_spender), PERMISSION_ERROR
+
+    res = remove_token_from_owners_list(ctx, t_from, t_id)
+    assert res, 'unable to remove token from owner list'
+
+    ownership['owner'] = t_to
+    ownership.remove('approved')  # remove previous approval
+    Put(ctx, concat('ownership/', t_id), Serialize(ownership))
+    res = add_token_to_owners_list(ctx, t_to, t_id)
+
+    # log this transfer event
+    OnTransfer(t_from, t_to, 1)
+    OnNFTTransfer(t_from, t_to, t_id)
+    return True
+
+
+def nash_do_transfer_from(ctx, Caller, args):
+    """Transfers the approved token at the specified id from the
+    t_from address to the t_to address
+
+    Only a whitelisted DEX can invoke this function
+
+    :param StorageContext ctx: current store context
+    :param list args:
+        0: bytearray t_from: transfer from address (token owner)
+        1: bytearray t_to: transfer to address (token receiver)
+        2: int t_id: token id
+    :return: transferFrom success
+    :rtype: bool
+    """
+
     t_from = args[0]
     t_to = args[1]
     t_id = args[2]
 
-    if len(t_from) != 20 or len(t_to) != 20:
-        Log(INVALID_ADDRESS_ERROR)
-        return False
-
+    assert is_whitelisted_dex(ctx, Caller), PERMISSION_ERROR
+    assert len(t_from) == 20, INVALID_ADDRESS_ERROR 
+    assert len(t_to) == 20, INVALID_ADDRESS_ERROR 
+            
     if t_from == t_to:
-        Log('transfer to self')
+        print('transfer to self')
         return True
 
-    t_owner = Get(ctx, t_id)
-    if len(t_owner) != 20:
-        Log(TOKEN_DNE_ERROR)
-        return False
+    ownership = safe_deserialize(Get(ctx, concat('ownership/', t_id)))
+    assert ownership, TOKEN_DNE_ERROR
+    assert has_key(ownership, 'owner'), TOKEN_DNE_ERROR
+    assert has_key(ownership, 'approved'), 'no approval exists for this token'
+    assert len(ownership['owner']) == 20, TOKEN_DNE_ERROR
 
-    if t_from != t_owner:
-        Log('from address is not the owner of this token')
-        return False
+    t_owner = ownership['owner']
 
-    approval_key = concat('approved/', t_id)
-    # authorized spend should be concat(t_owner, t_receiver)
-    authorized_spend = Get(ctx, approval_key)
+    assert t_from == t_owner, 'from address is not the owner of this token'
+    assert len(ownership['approved']) == 40, 'malformed approval key for this token'
 
-    # len(t_owner) == 20 and len(t_receiver) == 20, thus the length of
-    # authorized_spender should be 40
-    if len(authorized_spend) != 40:
-        Log('no approval exists for this token')
-        return False
+    assert ownership['approved'] == concat(t_from, t_to), PERMISSION_ERROR
 
-    # if the input transfer from and transfer to addresses match the
-    # authorized spend
-    if authorized_spend == concat(t_from, t_to):
-        # 1. Is t_to a smart contract?
-        # If True, invoke the transfer_to_smart_contract method.
-        # if transfer_to_smart_contract() returns False, then
-        # reject the transfer
-        if GetContract(t_to):
-            args.remove(0)
-            success = transfer_to_smart_contract(ctx, t_from, args, False)
-            if success is False:
-                return False
-        else:
-            # if t_to is not a contract, there shouldn't be any
-            # extra args to transfer(), this could be a phishing
-            # attempt so reject the transfer
-            if len(args) > 3:
-                Log(ARG_ERROR)
-                return False
+    res = remove_token_from_owners_list(ctx, t_from, t_id)
+    assert res, 'unable to remove token from owner list'
 
-        res = remove_token_from_owners_list(ctx, t_from, t_id)
-        if res is False:
-            Log('unable to transfer token')
-            return False
+    ownership['owner'] = t_to
+    ownership.remove('approved')  # remove previous approval
+    Put(ctx, concat('ownership/', t_id), Serialize(ownership))
+    res = add_token_to_owners_list(ctx, t_to, t_id)
 
-        Put(ctx, t_id, t_to)  # record token's new owner
-        Delete(ctx, approval_key)  # remove previous approval
-        add_token_to_owners_list(ctx, t_to, t_id)
-
-        # log this transfer event
-        OnTransfer(t_from, t_to, 1)
-        OnNFTTransfer(t_from, t_to, t_id)
-        return True
-
-    Log(PERMISSION_ERROR)
-    return False
+    # log this transfer event
+    OnTransfer(t_from, t_to, 1)
+    OnNFTTransfer(t_from, t_to, t_id)
+    return True
 
 
 # helper methods
@@ -731,65 +640,45 @@ def do_set_config(ctx, key, value):
 
     :param StorageContext ctx: current store context
     :param str key: key
-    :param value: value
+    :param any value: value
     :return: config success
     :rtype: bool
     """
     if len(value) > 0:
         Put(ctx, key, value)
-        Log('config key set')
+        print('config key set')
     else:
         Delete(ctx, key)
-        Log('config key deleted')
+        print('config key deleted')
 
     return True
 
 
-def do_token_data(ctx, t_id):
-    """Returns the specified token's id, properties and uri data
-    as a dict
+def safe_deserialize(data):
+    """Checks to see if the data exists before attempting to
+    deserialize it
 
-    :param StorageContext ctx: current store context
-    :param bytes t_id: token id
-    :return: dictionary of id, property, and uri keys mapped to their
-        corresponding token's data
-    :rtype: dict
+    :param list or dict data: data to deserialize
+    :return: deserialized data or False
+    :rtype: bool or list or dict
     """
-    # `token_key` may seem a bit redundant, however I realized that
-    # smart contract developers need an easy way to get an
-    # integer/bytes data type for the token id to make getting/adding
-    # extra data pertaining to a particular token id easier.
-    # Otherwise, they would have to parse the uri or properties key to
-    # get the token id and then convert that to an integer (which I'm
-    # not sure can be done in neo-boa) or do a call to tokensOfOwner
-    # keys
-    # token_key = concat('token/', t_id)
-    prop_key = concat('properties/', t_id)
-    uri_key = concat('uri/', t_id)
 
-    token_data = {
-        concat('token/', t_id): t_id,
-        prop_key: Get(ctx, prop_key),
-        uri_key: Get(ctx, uri_key)
-    }
-    return token_data
+    if data:
+        obj = Deserialize(data)
+        return obj
+    return False
 
 
 def add_token_to_owners_list(ctx, t_owner, t_id):
     """Adds a token to the owner's list of tokens
 
     :param StorageContext ctx: current store context
-    :param byte[] t_owner: token owner (could be either a smart
+    :param bytearray t_owner: token owner (could be either a smart
         contract or a wallet address)
-    :param bytes t_id: token ID
-    :return: successfully added token to owner's list
-    :rtype: bool
+    :param int t_id: token ID
+    :return: none
     """
-    length = Get(ctx, t_owner)  # number of tokens the owner has
     Put(ctx, concat(t_owner, t_id), t_id)  # store owner's new token
-    length += 1  # increment the owner's balance
-    Put(ctx, t_owner, length)  # store owner's new balance
-    Log("added token to owner's list and incremented owner's balance")
     return True
 
 
@@ -797,73 +686,67 @@ def remove_token_from_owners_list(ctx, t_owner, t_id):
     """Removes a token from owner's list of tokens
 
     :param StorageContext ctx: current store context
-    :param byte[] t_owner: token owner
-    :param bytes t_id: token id
-    :return: token removal success
+    :param bytearray t_owner: token owner
+    :param int t_id: token id
+    :return: successfully removed token from owner's list
     :rtype: bool
     """
-    length = Get(ctx, t_owner)  # get how many tokens this owner owns
-    # this should be impossible, but just in case, leaving it here
-    if len(length) == b'\x00':
-        Log('owner has no tokens')
-        return False
-
-    # if Delete returns True, that means the token was
-    # successfully deleted and we should decrement the owner's balance.
-    # otherwise, the token didn't exist/didn't belong to the owner,
-    # so Delete returns False in that case.
-    if Delete(ctx, concat(t_owner, t_id)):
-        new_balance = length - 1
-        if new_balance > 0:
-            Put(ctx, t_owner, new_balance)
-        else:
-            Delete(ctx, t_owner)
-
-        Log("removed token from owner's list and decremented owner's balance")
+    ckey = concat(t_owner, t_id)
+    if Get(ctx, ckey):
+        Delete(ctx, ckey)
         return True
 
-    Log("token not found in owner's list")
+    print("token not found in owner's list")
     return False
 
 
-def transfer_to_smart_contract(ctx, t_from, args, is_mint):
-    """Transfers a token to a smart contract and triggers the
-    receiving contract's onNFTTransfer event.
-
-    :param StorageContext ctx: current store context
-    :param byte[] t_from: transfer from address (who is sending the NFT)
-    :param list args:
-        0: byte[] t_to: transfer to address (who is receiving the NFT)
-        1: bytes t_id: token id
-        2: extra_arg (optional)
-    :param bool is_mint: whether or not the token is being minted
-    :return: transfer success
-    :rtype: bool
-    """
-    t_to = args[0]
-    t_id = args[1]
-
-    if len(t_from) != 20 or len(t_to) != 20:
-        Log(INVALID_ADDRESS_ERROR)
+def get_properties(ctx, id):
+    token = safe_deserialize(Get(ctx, concat('token/', id)))
+    if not token:  
+        print(TOKEN_DNE_ERROR)
         return False
-
-    # invoke the onNFTTransfer operation of the recipient contract,
-    # if it returns False, then reject the transfer
-    success = DynamicAppCall(t_to, 'onNFTTransfer', args)
-
-    if success is False:
-        Log('transfer rejected by recipient contract')
+    if not has_key(token, 'properties'):
         return False
+    return token['properties']
 
-    # need to check funds again in case a transfer or approval
-    # change happened inside the onTokenTransfer call
-    # the `is_mint` check is needed because you can't get the token
-    # owner for a token that hasn't finished being minted yet
-    if is_mint is False:
-        t_owner = Get(ctx, t_id)
-        if t_owner != t_from:
-            Log('insufficient funds')
-            return False
 
-    Log('transfer accepted by recipient contract')
+def get_rw_properties(ctx, id):
+    token = safe_deserialize(Get(ctx, concat('token/', id)))
+    if not token:  
+        print(TOKEN_DNE_ERROR)
+        return False
+    if not has_key(token, 'rwproperties'):
+        return False
+    return token['rwproperties']
+
+
+def set_rw_properties(ctx, id, data):
+    token_key = concat('token/', id)
+    token = safe_deserialize(Get(ctx, token_key ))
+
+    if not token:
+        print(TOKEN_DNE_ERROR)
+        return False
+    token['rwproperties'] = data
+    Put(ctx, token_key, Serialize(token))
     return True
+
+
+def authenticate(scripthash, Caller):
+    if CheckWitness(scripthash): return True
+    if GetContract(scripthash) and scripthash == Caller: return True
+    return False
+
+
+def do_whitelist_dex(ctx, args):
+    return do_set_config(ctx, concat('exchange/', args[0]), args[1])
+
+
+def is_whitelisted_dex(ctx, scripthash):
+    return Get(ctx, concat('exchange/', scripthash))
+
+
+def AssertionError(msg):
+    OnError(msg) # for neo-cli ApplicationLog
+    raise Exception(msg)
+
