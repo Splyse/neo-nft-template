@@ -11,7 +11,7 @@ The NFT proposal standard for the Neo Smart Economy is currently in development.
 The operations of the NFT template contract are:  
 
   * **allowance**(token_id): returns approved third-party spender of a token
-  * **approve**(receiver, token_id, revoke): approve third party to spend a token
+  * **approve**(owner, spender, token_id, revoke): approve third party to spend a token
   * **balanceOf**(owner): returns owner's current total tokens owned
   * **mintToken**(owner, properties, URI, extra_arg): create a new NFT token
   * **modifyURI**(token_id, URI): modify a token's URI
@@ -20,10 +20,9 @@ The operations of the NFT template contract are:
   * **properties**(token_id): returns a token's read-only data
   * **supportedStandards**(): returns a list of supported standards {"NEP-10"}
   * **symbol**(): returns token symbol
-  * **tokenData**(token_id): returns a dictionary where token, property, and uri keys map to their corresponding token's data
-  * **tokensDataOfOwner**(owner, start_index): returns a dictionary that contains less than or equal to five of the tokens (where token, properties, and uri keys map to their corresponding data for each token id) owned by the specified address starting at the `start_index`.
-  * **tokensOfOwner**(owner, start_index): returns a dictionary that contains less than or equal to ten of the tokens owned by the specified address starting at the `start_index`.
+  * **token**(token_id): returns a dictionary where token, property, and uri keys map to their corresponding token's data
+  * **tokensOfOwner**(owner, start_index): returns a dictionary that contains less than or equal to ten of the tokens owned by the specified address starting at the `start_index` and all their data.
   * **totalSupply**(): Returns the total token supply deployed in the system
   * **transfer**(to, token_id, extra_arg): transfers a token
-  * **transferFrom**(from, to, token_id, extra_arg): transfers a token by authorized spender
+  * **transferFrom**(spender, from, to, token_id): transfers a token by authorized spender
   * **uri**(token_id): returns a token's URI
